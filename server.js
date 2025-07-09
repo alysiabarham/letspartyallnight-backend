@@ -19,7 +19,8 @@ function generateRoomCode() {
 
 // Middleware:
 app.use(cors({
-    origin: '*', // Temporarily allow all origins for debugging.
+    // IMPORTANT: Set the origin to your specific, new frontend URL
+    origin: 'https://letspartyallnight-frontend-final-v4-m07w1pfst.vercel.app', 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
