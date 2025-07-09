@@ -1,9 +1,9 @@
 // server.js
 
 const express = require('express');
-const cors = require('cors');
+const cors = require('cors'); // Ensure cors is imported
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3001; // Use port 3001, or a port defined by the environment
 
 // In-memory store for rooms (for now)
 const rooms = {}; // Example: { 'ROOMCODE1': { host: 'user1', players: ['user1'], state: 'lobby', maxPlayers: 8, game: {} } }
@@ -17,31 +17,34 @@ function generateRoomCode() {
   return code;
 }
 
-
 // Middleware:
-app.use(cors());
+// Explicitly allow all origins for debugging. NOT for production without proper origin restriction.
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Explicitly allow common methods
+    allowedHeaders: ['Content-Type', 'Authorization'], // Allow common headers
+    credentials: true
+}));
+// Enable JSON body parsing for incoming requests
 app.use(express.json());
 
-// Basic Route (already there):
+// Basic Route: A simple "Hello World" endpoint to test the server
 app.get('/', (req, res) => {
   res.send('Hello from the Let\'s Party All Night backend!');
 });
 
-// --- Add these new API endpoints below the basic route ---
-
 // Endpoint to CREATE a new room
 app.post('/create-room', (req, res) => {
-  // In a real app, you'd get host info from authentication (e.g., req.user.id)
-  const hostId = req.body.hostId || `guest_${Date.now()}`; // For now, use a dummy host ID
+  const hostId = req.body.hostId || `guest_${Date.now()}`;
 
   const roomCode = generateRoomCode();
   rooms[roomCode] = {
     code: roomCode,
     hostId: hostId,
-    players: [{ id: hostId, name: `Player ${hostId.substring(hostId.length - 4)}` }], // Host is first player
-    state: 'lobby', // 'lobby', 'in-game', 'ended'
-    maxPlayers: 8, // Example max players
-    gameData: {} // Placeholder for actual game data
+    players: [{ id: hostId, name: `Player ${hostId.substring(hostId.length - 4)}` }],
+    state: 'lobby',
+    maxPlayers: 8,
+    gameData: {}
   };
 
   console.log(`Room created: ${roomCode} by ${hostId}`);
@@ -56,13 +59,13 @@ app.post('/create-room', (req, res) => {
 
 // Endpoint to JOIN an existing room
 app.post('/join-room', (req, res) => {
-  const { roomCode, playerId } = req.body; // Expect roomCode and playerId from frontend
+  const { roomCode, playerId } = req.body;
 
   if (!roomCode || !playerId) {
     return res.status(400).json({ error: 'Room code and player ID are required.' });
   }
 
-  const room = rooms[roomCode.toUpperCase()]; // Convert to uppercase for consistent lookup
+  const room = rooms[roomCode.toUpperCase()];
 
   if (!room) {
     return res.status(404).json({ error: 'Room not found.' });
@@ -72,16 +75,14 @@ app.post('/join-room', (req, res) => {
     return res.status(403).json({ error: 'Room is full.' });
   }
 
-  // Check if player is already in the room
   if (room.players.some(p => p.id === playerId)) {
     console.log(`Player ${playerId} already in room ${roomCode}`);
-    return res.status(200).json({ // Still return 200 OK if they're already in
+    return res.status(200).json({
       message: 'Player already in room.',
       room: room
     });
   }
 
-  // Add player to the room
   const newPlayer = { id: playerId, name: `Player ${playerId.substring(playerId.length - 4)}` };
   room.players.push(newPlayer);
 
@@ -105,8 +106,10 @@ app.get('/room/:roomCode', (req, res) => {
     }
 });
 
+// Log to confirm server is attempting to start
+console.log(`Attempting to start backend server on port ${port}`);
 
-// Start the server (already there):
+// Start the server
 app.listen(port, () => {
   console.log(`Backend server listening at http://localhost:${port}`);
 });
