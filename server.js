@@ -19,8 +19,7 @@ function generateRoomCode() {
 
 // Middleware:
 app.use(cors({
-    // IMPORTANT: Set the origin to your custom domain
-    origin: 'https://vercel.com/alysia-barhams-projects/letspartyallnight-frontend-v5/settings', 
+    origin: 'https://letspartyallnight-frontend-v5.vercel.app/',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
