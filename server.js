@@ -19,7 +19,6 @@ function generateRoomCode() {
 
 // Middleware:
 app.use(cors({
-    // IMPORTANT: Set the origin to your custom domain
     origin: 'https://letspartyallnight.games', 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -34,7 +33,7 @@ app.get('/', (req, res) => {
 
 // Endpoint to CREATE a new room
 app.post('/create-room', (req, res) => {
-  const hostName = req.body.hostId; // Use hostId as the name directly
+  const hostName = req.body.hostId;
 
   if (!hostName) {
       return res.status(400).json({ error: 'Host name is required.' });
@@ -43,14 +42,14 @@ app.post('/create-room', (req, res) => {
   const roomCode = generateRoomCode();
   rooms[roomCode] = {
     code: roomCode,
-    hostId: hostName, // Use the full name as hostId
-    players: [{ id: hostName, name: hostName }], // Use the full name as both ID and name
+    hostId: hostName,
+    players: [{ id: hostName, name: hostName }],
     state: 'lobby',
     maxPlayers: 8,
     gameData: {}
   };
 
-  console.log(`Room created: ${roomCode} by ${hostId}`);
+  console.log(`Room created: ${roomCode} by ${hostName}`);
   console.log('Current rooms:', rooms);
 
   res.status(201).json({
@@ -62,7 +61,7 @@ app.post('/create-room', (req, res) => {
 
 // Endpoint to JOIN an existing room
 app.post('/join-room', (req, res) => {
-  const { roomCode, playerId } = req.body; // playerId will be the player's entered name
+  const { roomCode, playerId } = req.body;
 
   if (!roomCode || !playerId) {
     return res.status(400).json({ error: 'Room code and player name are required.' });
@@ -78,7 +77,6 @@ app.post('/join-room', (req, res) => {
     return res.status(403).json({ error: 'Room is full.' });
   }
 
-  // Check if player is already in the room by name (or unique ID if using auth)
   if (room.players.some(p => p.name === playerId)) {
     console.log(`Player ${playerId} already in room ${roomCode}`);
     return res.status(200).json({
@@ -87,8 +85,7 @@ app.post('/join-room', (req, res) => {
     });
   }
 
-  // Add player to the room
-  const newPlayer = { id: playerId, name: playerId }; // Use playerId as both ID and name
+  const newPlayer = { id: playerId, name: playerId };
   room.players.push(newPlayer);
 
   console.log(`Player ${playerId} joined room ${roomCode}`);
@@ -113,7 +110,6 @@ app.get('/room/:roomCode', (req, res) => {
 
 console.log(`Attempting to start backend server on port ${port}`);
 
-// Start the server
 app.listen(port, () => {
   console.log(`Backend server listening at http://localhost:${port}`);
 });
