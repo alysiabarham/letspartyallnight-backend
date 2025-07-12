@@ -2,6 +2,8 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet'); // Import helmet for security headers
+const rateLimit = require('express-rate-limit'); // Import express-rate-limit for rate limiting
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -17,14 +19,41 @@ function generateRoomCode() {
   return code;
 }
 
-// Middleware:
+// --- Security Middleware ---
+
+// 1. Helmet: Sets various HTTP headers to help protect your app from well-known web vulnerabilities.
+app.use(helmet());
+
+// 2. CORS: Explicitly allow requests from your frontend domain.
 app.use(cors({
     origin: 'https://letspartyallnight.games', 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
+
+// 3. JSON Body Parser
 app.use(express.json());
+
+// 4. Rate Limiting: Apply to specific routes to prevent abuse.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again after 15 minutes."
+});
+
+const createRoomLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit each IP to 10 room creations per hour
+  message: "Too many room creation attempts from this IP, please try again after an hour."
+});
+
+// --- Helper for Input Validation ---
+const isAlphanumeric = (text) => {
+  return /^[a-zA-Z0-9]+$/.test(text);
+};
+
+// --- Routes ---
 
 // Basic Route
 app.get('/', (req, res) => {
@@ -32,11 +61,12 @@ app.get('/', (req, res) => {
 });
 
 // Endpoint to CREATE a new room
-app.post('/create-room', (req, res) => {
+app.post('/create-room', createRoomLimiter, (req, res) => { // Apply rate limiter
   const hostName = req.body.hostId;
 
-  if (!hostName) {
-      return res.status(400).json({ error: 'Host name is required.' });
+  // Server-side validation for hostName (alphanumeric only)
+  if (!hostName || !isAlphanumeric(hostName)) {
+      return res.status(400).json({ error: 'Host name is required and must be alphanumeric (letters and numbers only).' });
   }
 
   const roomCode = generateRoomCode();
@@ -60,11 +90,15 @@ app.post('/create-room', (req, res) => {
 });
 
 // Endpoint to JOIN an existing room
-app.post('/join-room', (req, res) => {
+app.post('/join-room', apiLimiter, (req, res) => { // Apply general API rate limiter
   const { roomCode, playerId } = req.body;
 
-  if (!roomCode || !playerId) {
-    return res.status(400).json({ error: 'Room code and player name are required.' });
+  // Server-side validation for roomCode and playerId (alphanumeric only)
+  if (!roomCode || !isAlphanumeric(roomCode)) {
+    return res.status(400).json({ error: 'Room code is required and must be alphanumeric (letters and numbers only).' });
+  }
+  if (!playerId || !isAlphanumeric(playerId)) {
+    return res.status(400).json({ error: 'Player name is required and must be alphanumeric (letters and numbers only).' });
   }
 
   const room = rooms[roomCode.toUpperCase()];
@@ -98,8 +132,14 @@ app.post('/join-room', (req, res) => {
 });
 
 // Endpoint to get room details (for testing/debugging and RoomPage to fetch players)
-app.get('/room/:roomCode', (req, res) => {
+app.get('/room/:roomCode', apiLimiter, (req, res) => { // Apply general API rate limiter
     const roomCode = req.params.roomCode.toUpperCase();
+
+    // Server-side validation for roomCode in GET request (alphanumeric only)
+    if (!isAlphanumeric(roomCode)) {
+      return res.status(400).json({ error: 'Room code must be alphanumeric (letters and numbers only).' });
+    }
+
     const room = rooms[roomCode];
     if (room) {
         res.status(200).json(room);
