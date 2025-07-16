@@ -26,6 +26,8 @@ app.use(helmet());
 
 // 2. CORS: Explicitly allow requests from your frontend custom domain.
 // This is CRITICAL for your frontend to communicate with the backend.
+// We are setting this here for good practice, but the vercel.json will
+// be the primary enforcer of CORS headers at the Vercel edge.
 app.use(cors({
     origin: 'https://letspartyallnight.games', 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
