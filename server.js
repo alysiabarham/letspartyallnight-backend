@@ -49,7 +49,7 @@ const createRoomLimiter = rateLimit({
 
 const isAlphanumeric = (text) => /^[a-zA-Z0-9]+$/.test(text);
 
-// --- HTTP Routes ---
+// --- Routes ---
 app.get('/', (req, res) => {
   res.send('Hello from the Let\'s Party All Night backend!');
 });
@@ -63,7 +63,7 @@ app.post('/create-room', createRoomLimiter, (req, res) => {
   const roomCode = generateRoomCode();
   rooms[roomCode] = {
     code: roomCode,
-    hostId: hostId,
+    hostId,
     players: [{ id: hostId, name: hostId }],
     entries: [],
     state: 'lobby',
@@ -144,9 +144,19 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('submitGuess', ({ roomCode, guess }) => {
+    console.log(`Guess received in room ${roomCode}:`, guess);
+    // Future: compare with Judge’s actual ranking and score the player
+  });
+
+  socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
+    console.log(`Starting ranking phase for room ${roomCode}. Judge: ${judgeName}`);
+    io.to(roomCode.toUpperCase()).emit('startRankingPhase', { judgeName });
+  });
+
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
-    // Future logic for cleaning up player state if needed
+    // Future cleanup logic goes here
   });
 });
 
