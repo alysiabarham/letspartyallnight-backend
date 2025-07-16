@@ -128,7 +128,6 @@ io.on('connection', (socket) => {
     socket.join(upperCode);
     console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
 
-    // Add player to room if not already present
     if (rooms[upperCode]) {
       const room = rooms[upperCode];
       const existing = room.players.some(p => p.name === playerName);
@@ -136,7 +135,6 @@ io.on('connection', (socket) => {
         room.players.push({ id: socket.id, name: playerName });
       }
 
-      // Broadcast updated player list to all clients in room
       io.to(upperCode).emit('playerJoined', {
         playerName,
         players: room.players,
@@ -145,6 +143,13 @@ io.on('connection', (socket) => {
     } else {
       console.log(`Room ${upperCode} not found in joinGameRoom.`);
     }
+  });
+
+  // NEW BLOCK: Broadcast game start to all clients
+  socket.on('gameStarted', ({ roomCode, category }) => {
+    const upperCode = roomCode.toUpperCase();
+    console.log(`Game started in room ${upperCode} with category "${category}"`);
+    io.to(upperCode).emit('gameStarted', { category });
   });
 
   socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
@@ -168,12 +173,10 @@ io.on('connection', (socket) => {
   socket.on('submitGuess', ({ roomCode, guess }) => {
     const upperCode = roomCode.toUpperCase();
     console.log(`Guess received in room ${upperCode}:`, guess);
-    // Future: compare with Judge’s actual ranking and score the player
   });
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
-    // Optional: remove socket from room players list here
   });
 });
 
