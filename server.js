@@ -3,7 +3,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet'); // Import helmet for security headers
-const rateLimit = require = require('express-rate-limit'); // Import express-rate-limit for rate limiting
+const rateLimit = require('express-rate-limit'); // Import express-rate-limit for rate limiting
 const app = express();
 const port = process.env.PORT || 3001;
 
