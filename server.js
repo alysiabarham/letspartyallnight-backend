@@ -20,7 +20,7 @@ app.use(helmet());
 app.use(express.json());
 
 const corsOptions = {
-  origin: 'https://letspartyallnight.games',
+  origin: ['https://letspartyallnight.games', 'https://letspartyallnight-frontend.vercel.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
