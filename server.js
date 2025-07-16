@@ -20,18 +20,16 @@ app.use(helmet());
 app.use(express.json());
 
 const corsOptions = {
-  origin: ['https://letspartyallnight.games', 'https://letspartyallnight-frontend.vercel.app'],
+  origin: ['https://letspartyallnight.games', 'https://www.letspartyallnight.games'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight requests
 
-// Handle preflight requests globally
-app.options('*', cors(corsOptions));
-
-// Rate Limiting
+// --- Rate Limiting ---
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -44,6 +42,7 @@ const createRoomLimiter = rateLimit({
   message: "Too many room creation attempts from this IP, please try again after an hour."
 });
 
+// --- Validation Helper ---
 const isAlphanumeric = (text) => /^[a-zA-Z0-9]+$/.test(text);
 
 // --- Routes ---
