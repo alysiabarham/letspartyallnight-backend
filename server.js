@@ -115,7 +115,9 @@ app.get('/room/:roomCode', apiLimiter, (req, res) => {
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  socket.on('joinGameRoom', (roomCode) => {
+  socket.on('joinGameRoom', ({ roomCode, playerName }) => {
+    const upperCode = roomCode.toUpperCase();
+
     socket.rooms.forEach(r => {
       if (r !== socket.id) {
         socket.leave(r);
@@ -123,13 +125,26 @@ io.on('connection', (socket) => {
       }
     });
 
-    socket.join(roomCode);
-    console.log(`${socket.id} joined room ${roomCode}`);
+    socket.join(upperCode);
+    console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
 
-    io.to(roomCode).emit('playerJoined', {
-      playerId: socket.id,
-      message: `${socket.id} has joined the game.`
-    });
+    // Add player to room if not already present
+    if (rooms[upperCode]) {
+      const room = rooms[upperCode];
+      const existing = room.players.some(p => p.name === playerName);
+      if (!existing) {
+        room.players.push({ id: socket.id, name: playerName });
+      }
+
+      // Broadcast updated player list to all clients in room
+      io.to(upperCode).emit('playerJoined', {
+        playerName,
+        players: room.players,
+        message: `${playerName} has joined the game.`
+      });
+    } else {
+      console.log(`Room ${upperCode} not found in joinGameRoom.`);
+    }
   });
 
   socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
@@ -138,25 +153,27 @@ io.on('connection', (socket) => {
       const room = rooms[upperCode];
       room.entries.push({ playerName, entry });
       console.log(`Entry received from ${playerName} in room ${upperCode}: ${entry}`);
-      io.to(upperCode).emit('newEntry', { entry });
+      io.to(upperCode).emit('newEntry', { entry, playerName });
     } else {
       console.log(`Invalid room code on entry: ${roomCode}`);
     }
   });
 
-  socket.on('submitGuess', ({ roomCode, guess }) => {
-    console.log(`Guess received in room ${roomCode}:`, guess);
-    // Future: compare with Judge’s actual ranking and score the player
+  socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
+    const upperCode = roomCode.toUpperCase();
+    console.log(`Starting ranking phase for room ${upperCode}. Judge: ${judgeName}`);
+    io.to(upperCode).emit('startRankingPhase', { judgeName });
   });
 
-  socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
-    console.log(`Starting ranking phase for room ${roomCode}. Judge: ${judgeName}`);
-    io.to(roomCode.toUpperCase()).emit('startRankingPhase', { judgeName });
+  socket.on('submitGuess', ({ roomCode, guess }) => {
+    const upperCode = roomCode.toUpperCase();
+    console.log(`Guess received in room ${upperCode}:`, guess);
+    // Future: compare with Judge’s actual ranking and score the player
   });
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
-    // Future cleanup logic goes here
+    // Optional: remove socket from room players list here
   });
 });
 
