@@ -3,17 +3,22 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const http = require('http');
+const { Server } = require('socket.io');
+
 const app = express();
 const port = process.env.PORT || 3001;
 const rooms = {};
 
-function generateRoomCode() {
-  let code;
-  do {
-    code = Math.random().toString(36).substring(2, 8).toUpperCase();
-  } while (rooms[code]);
-  return code;
-}
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: ['https://letspartyallnight.games', 'https://www.letspartyallnight.games'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  }
+});
 
 // --- Middleware ---
 app.use(helmet());
@@ -27,7 +32,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle preflight requests
+app.options('*', cors(corsOptions));
 
 // --- Rate Limiting ---
 const apiLimiter = rateLimit({
@@ -42,31 +47,31 @@ const createRoomLimiter = rateLimit({
   message: "Too many room creation attempts from this IP, please try again after an hour."
 });
 
-// --- Validation Helper ---
 const isAlphanumeric = (text) => /^[a-zA-Z0-9]+$/.test(text);
 
-// --- Routes ---
+// --- HTTP Routes ---
 app.get('/', (req, res) => {
   res.send('Hello from the Let\'s Party All Night backend!');
 });
 
 app.post('/create-room', createRoomLimiter, (req, res) => {
-  const hostName = req.body.hostId;
-  if (!hostName || !isAlphanumeric(hostName)) {
+  const hostId = req.body.hostId;
+  if (!hostId || !isAlphanumeric(hostId)) {
     return res.status(400).json({ error: 'Host name must be alphanumeric.' });
   }
 
   const roomCode = generateRoomCode();
   rooms[roomCode] = {
     code: roomCode,
-    hostId: hostName,
-    players: [{ id: hostName, name: hostName }],
+    hostId: hostId,
+    players: [{ id: hostId, name: hostId }],
+    entries: [],
     state: 'lobby',
     maxPlayers: 8,
     gameData: {}
   };
 
-  console.log(`Room created: ${roomCode} by ${hostName}`);
+  console.log(`Room created: ${roomCode} by ${hostId}`);
   res.status(201).json({ message: 'Room created successfully!', roomCode, room: rooms[roomCode] });
 });
 
@@ -106,6 +111,55 @@ app.get('/room/:roomCode', apiLimiter, (req, res) => {
   }
 });
 
-app.listen(port, () => {
+// --- Socket.IO Events ---
+io.on('connection', (socket) => {
+  console.log(`User connected: ${socket.id}`);
+
+  socket.on('joinGameRoom', (roomCode) => {
+    socket.rooms.forEach(r => {
+      if (r !== socket.id) {
+        socket.leave(r);
+        console.log(`${socket.id} left room ${r}`);
+      }
+    });
+
+    socket.join(roomCode);
+    console.log(`${socket.id} joined room ${roomCode}`);
+
+    io.to(roomCode).emit('playerJoined', {
+      playerId: socket.id,
+      message: `${socket.id} has joined the game.`
+    });
+  });
+
+  socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
+    const upperCode = roomCode.toUpperCase();
+    if (rooms[upperCode]) {
+      const room = rooms[upperCode];
+      room.entries.push({ playerName, entry });
+      console.log(`Entry received from ${playerName} in room ${upperCode}: ${entry}`);
+      io.to(upperCode).emit('newEntry', { entry });
+    } else {
+      console.log(`Invalid room code on entry: ${roomCode}`);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${socket.id}`);
+    // Future logic for cleaning up player state if needed
+  });
+});
+
+function generateRoomCode() {
+  let code;
+  do {
+    code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  } while (rooms[code]);
+  return code;
+}
+
+// --- Start Server ---
+server.listen(port, () => {
   console.log(`Backend server listening at http://localhost:${port}`);
+  console.log(`Socket.IO server also running on port ${port}`);
 });
