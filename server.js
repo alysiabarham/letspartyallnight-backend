@@ -163,21 +163,28 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
-    const upperCode = roomCode.toUpperCase();
-    const room = rooms[upperCode];
-    if (room) {
-      room.judgeName = judgeName;
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+  if (room) {
+    room.judgeName = judgeName;
 
-      const anonymousEntries = room.entries.map(e => e.entry);
-const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
-if (judgeSocket) {
-  io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
-}
+    const anonymousEntries = room.entries.map(e => e.entry);
 
-      console.log(`Starting ranking phase for room ${upperCode}. Judge: ${judgeName}`);
-      io.to(upperCode).emit('startRankingPhase', { judgeName });
+    // 🔧 Find Judge's socket ID
+    const judgePlayer = room.players.find(p => p.name === judgeName);
+    const judgeSocketId = judgePlayer?.id;
+
+    if (judgeSocketId) {
+      io.to(judgeSocketId).emit('sendAllEntries', { entries: anonymousEntries });
+      console.log(`✅ Sent entries to Judge (${judgeName}) in room ${upperCode}`);
+    } else {
+      console.log(`❌ Could not find Judge socket for ${judgeName} in room ${upperCode}`);
     }
-  });
+
+    io.to(upperCode).emit('startRankingPhase', { judgeName });
+    console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
+  }
+});
 
   socket.on('submitRanking', ({ roomCode, ranking }) => {
     const upperCode = roomCode.toUpperCase();
