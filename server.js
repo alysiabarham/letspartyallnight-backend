@@ -233,4 +233,7 @@ function generateRoomCode() {
   return code;
 }
 
-server.listen(port,
+server.listen(port, () => {
+  console.log(`Backend server listening at http://localhost:${port}`);
+  console.log(`Socket.IO server also running on port ${port}`);
+});
