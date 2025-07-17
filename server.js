@@ -169,7 +169,10 @@ io.on('connection', (socket) => {
       room.judgeName = judgeName;
 
       const anonymousEntries = room.entries.map(e => e.entry);
-      io.to(upperCode).emit('sendAllEntries', { entries: anonymousEntries });
+const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
+if (judgeSocket) {
+  io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
+}
 
       console.log(`Starting ranking phase for room ${upperCode}. Judge: ${judgeName}`);
       io.to(upperCode).emit('startRankingPhase', { judgeName });
