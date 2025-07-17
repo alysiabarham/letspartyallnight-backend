@@ -16,7 +16,7 @@ const io = new Server(server, {
     origin: ['https://letspartyallnight.games', 'https://www.letspartyallnight.games'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
+    credentials: true
   }
 });
 
@@ -28,7 +28,7 @@ const corsOptions = {
   origin: ['https://letspartyallnight.games', 'https://www.letspartyallnight.games'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
+  credentials: true
 };
 
 app.use(cors(corsOptions));
@@ -128,8 +128,8 @@ io.on('connection', (socket) => {
     socket.join(upperCode);
     console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
 
-    if (rooms[upperCode]) {
-      const room = rooms[upperCode];
+    const room = rooms[upperCode];
+    if (room) {
       const existing = room.players.some(p => p.name === playerName);
       if (!existing) {
         room.players.push({ id: socket.id, name: playerName });
@@ -152,46 +152,51 @@ io.on('connection', (socket) => {
   });
 
   socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
-  const upperCode = roomCode.toUpperCase();
-  const room = rooms[upperCode];
-  if (!room) return;
+    const upperCode = roomCode.toUpperCase();
+    const room = rooms[upperCode];
+    if (!room) return;
 
-  room.entries.push({ playerName, entry });
-  console.log(`Entry received from ${playerName} in room ${upperCode}: ${entry}`);
+    room.entries.push({ playerName, entry });
+    console.log(`Entry received from ${playerName} in room ${upperCode}: ${entry}`);
 
-  io.to(upperCode).emit('newEntry', { entry }); // anonymous for all clients
-});
+    io.to(upperCode).emit('newEntry', { entry }); // anonymous for all clients
+  });
 
-socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
-  const upperCode = roomCode.toUpperCase();
-  const room = rooms[upperCode];
-  if (room) {
-    room.judgeName = judgeName;
+  socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
+    const upperCode = roomCode.toUpperCase();
+    const room = rooms[upperCode];
+    if (room) {
+      room.judgeName = judgeName;
 
-    const anonymousEntries = room.entries.map(e => e.entry);
-    io.to(upperCode).emit('sendAllEntries', { entries: anonymousEntries });
+      const anonymousEntries = room.entries.map(e => e.entry);
+      io.to(upperCode).emit('sendAllEntries', { entries: anonymousEntries });
 
-    console.log(`Starting ranking phase for room ${upperCode}. Judge: ${judgeName}`);
-    io.to(upperCode).emit('startRankingPhase', { judgeName });
-  }
-});
+      console.log(`Starting ranking phase for room ${upperCode}. Judge: ${judgeName}`);
+      io.to(upperCode).emit('startRankingPhase', { judgeName });
+    }
+  });
 
-socket.on('submitRanking', ({ roomCode, ranking }) => {
-  const upperCode = roomCode.toUpperCase();
-  const room = rooms[upperCode];
-  if (!room) return;
+  socket.on('submitRanking', ({ roomCode, ranking }) => {
+    const upperCode = roomCode.toUpperCase();
+    const room = rooms[upperCode];
+    if (!room) return;
 
-  room.judgeRanking = ranking;
-  room.selectedEntries = ranking; // ✅ Must set selectedEntries
-  console.log(`Ranking submitted for room ${upperCode}:`, ranking);
-});
+    room.judgeRanking = ranking;
+    room.selectedEntries = ranking;
+    console.log(`Ranking submitted for room ${upperCode}:`, ranking);
+  });
 
-socket.on('requestEntries', ({ roomCode }) => {
-  const room = rooms[roomCode.toUpperCase()];
-  if (room && room.selectedEntries) {
+  socket.on('requestEntries', ({ roomCode }) => {
+    const upperCode = roomCode.toUpperCase();
+    const room = rooms[upperCode];
+    if (!room || !room.selectedEntries) {
+      console.log(`❌ requestEntries failed: No entries for ${upperCode}`);
+      return;
+    }
+
     socket.emit('sendAllEntries', { entries: room.selectedEntries });
-  }
-});
+    console.log(`✅ Sent selected entries to ${socket.id} in ${upperCode}`);
+  });
 
   socket.on('submitGuess', ({ roomCode, playerName, guess }) => {
     const upperCode = roomCode.toUpperCase();
@@ -215,57 +220,12 @@ socket.on('requestEntries', ({ roomCode }) => {
     }
   });
 
-  socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
-  const upperCode = roomCode.toUpperCase();
-  const room = rooms[upperCode];
-  if (room) {
-    room.judgeName = judgeName;
-
-    const anonymousEntries = room.entries.map(e => e.entry);
-    io.to(upperCode).emit('sendAllEntries', { entries: anonymousEntries });
-
-    io.to(upperCode).emit('startRankingPhase', { judgeName });
-    console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
-  }
-});
-
-socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
-  const upperCode = roomCode.toUpperCase();
-  const room = rooms[upperCode];
-  if (!room) return;
-
-  room.entries.push({ playerName, entry });
-  console.log(`Entry received from ${playerName} in room ${upperCode}: ${entry}`);
-
-  const fullEntry = `${playerName}: ${entry}`;
-  const anonymousEntry = entry;
-
-  // ✅ Emit named entry to Judge
-  if (room.judgeSocketId) {
-    io.to(room.judgeSocketId).emit('newEntry', { entry: fullEntry });
-  }
-
-  // ✅ Emit anonymous entry to other clients
-  socket.broadcast.to(upperCode).emit('newEntry', { entry: anonymousEntry });
-});
-
-socket.on('requestEntries', ({ roomCode }) => {
-  const upperCode = roomCode.toUpperCase();
-  const room = rooms[upperCode];
-  if (!room || !room.selectedEntries) {
-    console.log(`❌ requestEntries failed: No entries for ${upperCode}`);
-    return;
-  }
-
-  socket.emit('sendAllEntries', { entries: room.selectedEntries });
-  console.log(`✅ Sent selected entries to ${socket.id} in ${upperCode}`);
-});
-
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
   });
 });
 
+// --- Room Code Generator ---
 function generateRoomCode() {
   let code;
   do {
