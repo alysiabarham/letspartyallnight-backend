@@ -13,9 +13,11 @@ const rooms = {};
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ['https://letspartyallnight.games', 'https://www.letspartyallnight.games'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: [
+      'https://letspartyallnight.games',
+      'https://www.letspartyallnight.games'
+    ],
+    methods: ['GET', 'POST'],
     credentials: true
   }
 });
@@ -25,9 +27,12 @@ app.use(helmet());
 app.use(express.json());
 
 const corsOptions = {
-  origin: ['https://letspartyallnight.games', 'https://www.letspartyallnight.games'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: [
+    'https://letspartyallnight.games',
+    'https://www.letspartyallnight.games'
+  ],
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type'],
   credentials: true
 };
 
