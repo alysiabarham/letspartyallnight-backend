@@ -107,48 +107,42 @@ io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
   socket.on('joinGameRoom', ({ roomCode, playerName }) => {
-    const upperCode = roomCode.toUpperCase();
+  const upperCode = roomCode.toUpperCase();
 
-    socket.rooms.forEach(r => {
-      if (r !== socket.id) {
-        socket.leave(r);
-        console.log(`${socket.id} left room ${r}`);
-      }
-    });
-
-    socket.join(upperCode);
-    console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
-
-    const room = rooms[upperCode];
-    if (room) {
-      const existing = room.players.some(p => p.name === playerName);
-      if (!existing) {
-        room.players.push({ id: socket.id, name: playerName });
-      }
-
-      // ✅ Re-send entries to Judge if reconnecting
-      if (room.judgeName === playerName && room.entries.length > 0) {
-  const anonymousEntries = room.entries.map(e => e.entry);
-  io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
-  console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
-}
-
-console.log(`🔍 Checking if ${playerName} is Judge in room ${upperCode}`);
-if (room.judgeName === playerName && room.entries.length > 0) {
-  const anonymousEntries = room.entries.map(e => e.entry);
-  io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
-  console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
-}
-
-      io.to(upperCode).emit('playerJoined', {
-        playerName,
-        players: room.players,
-        message: `${playerName} has joined the game.`
-      });
-    } else {
-      console.log(`Room ${upperCode} not found in joinGameRoom.`);
+  socket.rooms.forEach(r => {
+    if (r !== socket.id) {
+      socket.leave(r);
+      console.log(`${socket.id} left room ${r}`);
     }
   });
+
+  socket.join(upperCode);
+  console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
+
+  const room = rooms[upperCode];
+  if (room) {
+    const existing = room.players.some(p => p.name === playerName);
+    if (!existing) {
+      room.players.push({ id: socket.id, name: playerName });
+    }
+
+    // ✅ Re-send entries to Judge if reconnecting
+    console.log(`🔍 Checking if ${playerName} is Judge in room ${upperCode}`);
+    if (room.judgeName === playerName && room.entries.length > 0) {
+      const anonymousEntries = room.entries.map(e => e.entry);
+      io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
+      console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
+    }
+
+    io.to(upperCode).emit('playerJoined', {
+      playerName,
+      players: room.players,
+      message: `${playerName} has joined the game.`
+    });
+  } else {
+    console.log(`Room ${upperCode} not found in joinGameRoom.`);
+  }
+});
 
   socket.on('gameStarted', ({ roomCode, category }) => {
     const upperCode = roomCode.toUpperCase();
