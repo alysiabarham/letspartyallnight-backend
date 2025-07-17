@@ -128,10 +128,17 @@ io.on('connection', (socket) => {
 
       // ✅ Re-send entries to Judge if reconnecting
       if (room.judgeName === playerName && room.entries.length > 0) {
-        const anonymousEntries = room.entries.map(e => e.entry);
-        io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
-        console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
-      }
+  const anonymousEntries = room.entries.map(e => e.entry);
+  io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
+  console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
+}
+
+console.log(`🔍 Checking if ${playerName} is Judge in room ${upperCode}`);
+if (room.judgeName === playerName && room.entries.length > 0) {
+  const anonymousEntries = room.entries.map(e => e.entry);
+  io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
+  console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
+}
 
       io.to(upperCode).emit('playerJoined', {
         playerName,
