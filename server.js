@@ -162,7 +162,7 @@ io.on('connection', (socket) => {
       console.log(`Invalid room code on entry: ${roomCode}`);
     }
   });
-  
+
 socket.on('requestEntries', ({ roomCode }) => {
   const upperCode = roomCode.toUpperCase();
   const room = rooms[upperCode];
@@ -208,14 +208,43 @@ socket.on('requestEntries', ({ roomCode }) => {
   const room = rooms[upperCode];
   if (room) {
     room.judgeName = judgeName;
+    room.judgeSocketId = socket.id; // ✅ Store Judge's socket ID
 
-    // ✅ NEW: Broadcast all entries to clients
     const entryTexts = room.entries.map(e => `${e.playerName}: ${e.entry}`);
-    console.log(`Entries in room ${upperCode}:`, room.entries);
     io.to(upperCode).emit('sendAllEntries', { entries: entryTexts });
 
     console.log(`Starting ranking phase for room ${upperCode}. Judge: ${judgeName}`);
     io.to(upperCode).emit('startRankingPhase', { judgeName });
+  }
+});
+
+socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+  if (!room) return;
+
+  room.entries.push({ playerName, entry });
+  console.log(`Entry received from ${playerName} in room ${upperCode}: ${entry}`);
+
+  const fullEntry = `${playerName}: ${entry}`;
+  const anonymousEntry = entry;
+
+  // ✅ Emit named entry to Judge
+  if (room.judgeSocketId) {
+    io.to(room.judgeSocketId).emit('newEntry', { entry: fullEntry });
+  }
+
+  // ✅ Emit anonymous entry to other clients
+  socket.broadcast.to(upperCode).emit('newEntry', { entry: anonymousEntry });
+});
+
+socket.on('requestEntries', ({ roomCode }) => {
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+  if (room && room.entries) {
+    const entryTexts = room.entries.map(e => e.entry); // ✅ Anonymous only
+    socket.emit('sendAllEntries', { entries: entryTexts });
+    console.log(`✅ Re-sent entries to client in ${upperCode}`);
   }
 });
 
