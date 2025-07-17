@@ -184,6 +184,7 @@ socket.on('submitRanking', ({ roomCode, ranking }) => {
   room.judgeRanking = ranking;
   room.selectedEntries = ranking; // Only the judge's chosen 5
   console.log(`Ranking submitted for room ${upperCode}:`, ranking);
+  console.log("✅ Judge selected:", room.selectedEntries);
 });
 
 socket.on('requestEntries', ({ roomCode }) => {
@@ -255,9 +256,13 @@ socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
 socket.on('requestEntries', ({ roomCode }) => {
   const upperCode = roomCode.toUpperCase();
   const room = rooms[upperCode];
-  if (room && room.selectedEntries) {
-    socket.emit('sendAllEntries', { entries: room.selectedEntries }); // 👈 not room.entries
+  if (!room || !room.selectedEntries) {
+    console.log(`❌ requestEntries failed: No entries for ${upperCode}`);
+    return;
   }
+
+  socket.emit('sendAllEntries', { entries: room.selectedEntries });
+  console.log(`✅ Sent selected entries to ${socket.id} in ${upperCode}`);
 });
 
   socket.on('disconnect', () => {
