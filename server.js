@@ -162,6 +162,16 @@ io.on('connection', (socket) => {
       console.log(`Invalid room code on entry: ${roomCode}`);
     }
   });
+  
+socket.on('requestEntries', ({ roomCode }) => {
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+  if (room && room.entries) {
+    const entryTexts = room.entries.map(e => `${e.playerName}: ${e.entry}`);
+    socket.emit('sendAllEntries', { entries: entryTexts });
+    console.log(`✅ Re-sent entries to judge in ${upperCode}`);
+  }
+});
 
   socket.on('submitRanking', ({ roomCode, ranking }) => {
     const upperCode = roomCode.toUpperCase();
