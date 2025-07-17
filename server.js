@@ -255,10 +255,8 @@ socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
 socket.on('requestEntries', ({ roomCode }) => {
   const upperCode = roomCode.toUpperCase();
   const room = rooms[upperCode];
-  if (room && room.entries) {
-    const entryTexts = room.entries.map(e => e.entry); // ✅ Anonymous only
-    socket.emit('sendAllEntries', { entries: entryTexts });
-    console.log(`✅ Re-sent entries to client in ${upperCode}`);
+  if (room && room.selectedEntries) {
+    socket.emit('sendAllEntries', { entries: room.selectedEntries }); // 👈 not room.entries
   }
 });
 
