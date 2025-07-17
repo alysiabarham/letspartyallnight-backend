@@ -194,14 +194,19 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
-    const upperCode = roomCode.toUpperCase();
-    const room = rooms[upperCode];
-    if (room) {
-      room.judgeName = judgeName; // Store judge name for later
-    }
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+  if (room) {
+    room.judgeName = judgeName;
+
+    // ✅ NEW: Broadcast all entries to clients
+    const entryTexts = room.entries.map(e => `${e.playerName}: ${e.entry}`);
+    io.to(upperCode).emit('sendAllEntries', { entries: entryTexts });
+
     console.log(`Starting ranking phase for room ${upperCode}. Judge: ${judgeName}`);
     io.to(upperCode).emit('startRankingPhase', { judgeName });
-  });
+  }
+});
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
