@@ -223,13 +223,12 @@ socket.on('requestEntries', ({ roomCode }) => {
   const room = rooms[upperCode];
   if (room) {
     room.judgeName = judgeName;
-    room.judgeSocketId = socket.id; // ✅ Store Judge's socket ID
 
-    const entryTexts = room.entries.map(e => `${e.playerName}: ${e.entry}`);
-    io.to(upperCode).emit('sendAllEntries', { entries: entryTexts });
+    const anonymousEntries = room.entries.map(e => e.entry);
+    io.to(upperCode).emit('sendAllEntries', { entries: anonymousEntries });
 
-    console.log(`Starting ranking phase for room ${upperCode}. Judge: ${judgeName}`);
     io.to(upperCode).emit('startRankingPhase', { judgeName });
+    console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
   }
 });
 
