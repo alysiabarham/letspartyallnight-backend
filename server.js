@@ -172,20 +172,12 @@ io.on('connection', (socket) => {
   const room = rooms[upperCode];
   if (room) {
     room.judgeName = judgeName;
+    room.judgeSocketId = socket.id; // ✅ Store Judge's current socket ID
 
     const anonymousEntries = room.entries.map(e => e.entry);
+    io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
 
-    // 🔧 Find Judge's socket ID
-    const judgePlayer = room.players.find(p => p.name === judgeName);
-    const judgeSocketId = judgePlayer?.id;
-
-    if (judgeSocketId) {
-      io.to(judgeSocketId).emit('sendAllEntries', { entries: anonymousEntries });
-      console.log(`✅ Sent entries to Judge (${judgeName}) in room ${upperCode}`);
-    } else {
-      console.log(`❌ Could not find Judge socket for ${judgeName} in room ${upperCode}`);
-    }
-
+    console.log(`✅ Sent entries to Judge (${judgeName}) in room ${upperCode}`);
     io.to(upperCode).emit('startRankingPhase', { judgeName });
     console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
   }
