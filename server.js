@@ -201,6 +201,7 @@ io.on('connection', (socket) => {
 
     // ✅ NEW: Broadcast all entries to clients
     const entryTexts = room.entries.map(e => `${e.playerName}: ${e.entry}`);
+    console.log(`Entries in room ${upperCode}:`, room.entries);
     io.to(upperCode).emit('sendAllEntries', { entries: entryTexts });
 
     console.log(`Starting ranking phase for room ${upperCode}. Judge: ${judgeName}`);
