@@ -102,20 +102,6 @@ app.post('/join-room', apiLimiter, (req, res) => {
   res.status(200).json({ message: 'Successfully joined room!', room });
 });
 
-app.get('/room/:roomCode', apiLimiter, (req, res) => {
-  const roomCode = req.params.roomCode.toUpperCase();
-  if (!isAlphanumeric(roomCode)) {
-    return res.status(400).json({ error: 'Room code must be alphanumeric.' });
-  }
-
-  const room = rooms[roomCode];
-  if (room) {
-    res.status(200).json(room);
-  } else {
-    res.status(404).json({ error: 'Room not found.' });
-  }
-});
-
 // --- Socket.IO Events ---
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
@@ -138,6 +124,13 @@ io.on('connection', (socket) => {
       const existing = room.players.some(p => p.name === playerName);
       if (!existing) {
         room.players.push({ id: socket.id, name: playerName });
+      }
+
+      // ✅ Re-send entries to Judge if reconnecting
+      if (room.judgeName === playerName && room.entries.length > 0) {
+        const anonymousEntries = room.entries.map(e => e.entry);
+        io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
+        console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
       }
 
       io.to(upperCode).emit('playerJoined', {
@@ -168,20 +161,19 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
-  const upperCode = roomCode.toUpperCase();
-  const room = rooms[upperCode];
-  if (room) {
-    room.judgeName = judgeName;
-    room.judgeSocketId = socket.id; // ✅ Store Judge's current socket ID
+    const upperCode = roomCode.toUpperCase();
+    const room = rooms[upperCode];
+    if (room) {
+      room.judgeName = judgeName;
 
-    const anonymousEntries = room.entries.map(e => e.entry);
-    io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
+      const anonymousEntries = room.entries.map(e => e.entry);
+      io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
 
-    console.log(`✅ Sent entries to Judge (${judgeName}) in room ${upperCode}`);
-    io.to(upperCode).emit('startRankingPhase', { judgeName });
-    console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
-  }
-});
+      console.log(`✅ Sent entries to Judge (${judgeName}) in room ${upperCode}`);
+      io.to(upperCode).emit('startRankingPhase', { judgeName });
+      console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
+    }
+  });
 
   socket.on('submitRanking', ({ roomCode, ranking }) => {
     const upperCode = roomCode.toUpperCase();
@@ -241,7 +233,4 @@ function generateRoomCode() {
   return code;
 }
 
-server.listen(port, () => {
-  console.log(`Backend server listening at http://localhost:${port}`);
-  console.log(`Socket.IO server also running on port ${port}`);
-});
+server.listen(port,
