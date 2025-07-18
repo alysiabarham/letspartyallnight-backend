@@ -170,18 +170,13 @@ io.on('connection', (socket) => {
     console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
     io.to(upperCode).emit('startRankingPhase', { judgeName });
 
-    // ✅ Wait briefly, then emit entries to Judge
-    setTimeout(() => {
-      const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
-      const anonymousEntries = room.entries.map(e => e.entry);
-
-      if (judgeSocket && anonymousEntries.length > 0) {
-        io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
-        console.log(`✅ Sent entries to Judge (${judgeName}) in room ${upperCode}`);
-      } else {
-        console.log(`❌ Could not send entries to Judge (${judgeName}) in room ${upperCode}`);
-      }
-    }, 500); // small delay to ensure Judge has joined
+    const anonymousEntries = room.entries.map(e => e.entry);
+    if (anonymousEntries.length > 0) {
+      io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
+      console.log(`✅ Sent entries to Judge (${judgeName}) via socket ${socket.id}`);
+    } else {
+      console.log(`❌ No entries found to send to Judge (${judgeName})`);
+    }
   }
 });
 
