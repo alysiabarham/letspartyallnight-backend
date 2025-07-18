@@ -186,14 +186,19 @@ io.on('connection', (socket) => {
 });
 
   socket.on('submitRanking', ({ roomCode, ranking }) => {
-    const upperCode = roomCode.toUpperCase();
-    const room = rooms[upperCode];
-    if (!room) return;
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+  if (!room) return;
 
-    room.judgeRanking = ranking;
-    room.selectedEntries = ranking;
-    console.log(`Ranking submitted for room ${upperCode}:`, ranking);
-  });
+  room.judgeRanking = ranking;
+  room.selectedEntries = ranking;
+
+  console.log(`Ranking submitted for room ${upperCode}:`, ranking);
+
+  // ✅ Notify guessers
+  io.to(upperCode).emit('sendAllEntries', { entries: ranking });
+  console.log(`✅ Broadcasted Judge's ranking to all guessers in ${upperCode}`);
+});
 
   socket.on('requestEntries', ({ roomCode }) => {
     const upperCode = roomCode.toUpperCase();
