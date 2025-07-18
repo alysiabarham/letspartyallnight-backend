@@ -121,9 +121,14 @@ io.on('connection', (socket) => {
     const room = rooms[upperCode];
     if (room) {
       const existing = room.players.some(p => p.name === playerName);
-      if (!existing) {
+      if (existing) {
+        // Update their socket ID to current one
+        room.players = room.players.map(p =>
+          p.name === playerName ? { ...p, id: socket.id } : p
+        );
+       } else {
         room.players.push({ id: socket.id, name: playerName });
-      }
+       }
 
       // ✅ Re-send entries to Judge if reconnecting
       console.log(`🔍 Checking if ${playerName} is Judge in room ${upperCode}`);
