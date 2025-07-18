@@ -105,10 +105,6 @@ app.post('/join-room', apiLimiter, (req, res) => {
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  // ✅ Emit test entries to every client on connect
-  socket.emit('sendAllEntries', { entries: ['Test Entry 1', 'Test Entry 2'] });
-  console.log(`✅ Sent test entries to ${socket.id} on connect`);
-
   socket.on('joinGameRoom', ({ roomCode, playerName }) => {
     const upperCode = roomCode.toUpperCase();
 
@@ -169,19 +165,10 @@ io.on('connection', (socket) => {
     const room = rooms[upperCode];
     if (room) {
       room.judgeName = judgeName;
+      room.phase = 'ranking';
 
-      const anonymousEntries = room.entries.map(e => e.entry);
-
-      // ✅ Emit to Judge only
-      io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
-      console.log(`✅ Sent entries to Judge (${judgeName}) in room ${upperCode}`);
-
-      // ✅ Emit to all clients for debugging
-      io.emit('sendAllEntries', { entries: anonymousEntries });
-      console.log(`✅ Broadcasted entries to all clients`);
-
-      io.to(upperCode).emit('startRankingPhase', { judgeName });
       console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
+      io.to(upperCode).emit('startRankingPhase', { judgeName });
     }
   });
 
@@ -232,7 +219,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
   });
-});
+}); // ✅ This closes io.on('connection', ...)
 
 // --- Room Code Generator ---
 function generateRoomCode() {
