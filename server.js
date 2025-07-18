@@ -222,6 +222,9 @@ socket.on('submitRanking', ({ roomCode, ranking }) => {
   const room = rooms[upperCode];
   if (!room) return;
 
+  console.log('Room players at time of guess:', room.players.map(p => p.name));
+  console.log('Guesses received so far:', Object.keys(room.guesses));
+
   if (!room.guesses) room.guesses = {};
   room.guesses[playerName] = guess;
 
@@ -242,7 +245,6 @@ socket.on('submitRanking', ({ roomCode, ranking }) => {
         if (guess[i] === judgeRanking[i]) score++;
       }
 
-      // ✅ Bonus points for perfect match
       if (score === judgeRanking.length) {
         score += 3;
         console.log(`🎉 Perfect match by ${name}! Bonus applied.`);
