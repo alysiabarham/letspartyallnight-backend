@@ -185,7 +185,11 @@ io.on('connection', (socket) => {
   }
 });
 
-  socket.on('submitRanking', ({ roomCode, ranking }) => {
+  const shuffleArray = (arr) => {
+  return [...arr].sort(() => Math.random() - 0.5);
+};
+
+socket.on('submitRanking', ({ roomCode, ranking }) => {
   const upperCode = roomCode.toUpperCase();
   const room = rooms[upperCode];
   if (!room) return;
@@ -195,9 +199,10 @@ io.on('connection', (socket) => {
 
   console.log(`Ranking submitted for room ${upperCode}:`, ranking);
 
-  // ✅ Notify guessers
-  io.to(upperCode).emit('sendAllEntries', { entries: ranking });
-  console.log(`✅ Broadcasted Judge's ranking to all guessers in ${upperCode}`);
+  const shuffledEntries = shuffleArray(ranking);
+  io.to(upperCode).emit('sendAllEntries', { entries: shuffledEntries });
+
+  console.log(`✅ Sent shuffled entries to guessers in ${upperCode}:`, shuffledEntries);
 });
 
   socket.on('requestEntries', ({ roomCode }) => {
