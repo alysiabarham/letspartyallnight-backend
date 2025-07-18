@@ -213,30 +213,47 @@ io.on('connection', (socket) => {
   });
 
   socket.on('submitGuess', ({ roomCode, playerName, guess }) => {
-    const upperCode = roomCode.toUpperCase();
-    const room = rooms[upperCode];
-    if (!room) return;
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+  if (!room) return;
 
-    if (!room.guesses) room.guesses = {};
-    room.guesses[playerName] = guess;
+  if (!room.guesses) room.guesses = {};
+  room.guesses[playerName] = guess;
 
-    console.log(`Guess from ${playerName} in ${upperCode}:`, guess);
+  console.log(`Guess from ${playerName} in ${upperCode}:`, guess);
 
-    const guessers = room.players.filter(p => p.name !== room.hostId && p.name !== room.judgeName);
-    const received = Object.keys(room.guesses).length;
+  const guessers = room.players.filter(p =>
+    p.name !== room.hostId && p.name !== room.judgeName
+  );
+  const received = Object.keys(room.guesses).length;
 
-    if (received >= guessers.length) {
-      io.to(upperCode).emit('revealResults', {
-        judgeRanking: room.judgeRanking,
-        guesses: room.guesses
-      });
-      console.log(`All guesses submitted for room ${upperCode}. Revealing results.`);
+  if (received >= guessers.length) {
+    const judgeRanking = room.judgeRanking;
+    const results = {};
+
+    for (const [name, guess] of Object.entries(room.guesses)) {
+      let score = 0;
+      for (let i = 0; i < guess.length; i++) {
+        if (guess[i] === judgeRanking[i]) score++;
+      }
+
+      // ✅ Bonus points for perfect match
+      if (score === judgeRanking.length) {
+        score += 3;
+        console.log(`🎉 Perfect match by ${name}! Bonus applied.`);
+      }
+
+      results[name] = { guess, score };
     }
-  });
 
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-  });
+    io.to(upperCode).emit('revealResults', {
+      judgeRanking,
+      results
+    });
+
+    console.log(`✅ Revealed results with scores for room ${upperCode}:`, results);
+  }
+});
 }); // ✅ This closes io.on('connection', ...)
 
 // --- Room Code Generator ---
