@@ -7,7 +7,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 10000;
 const rooms = {};
 
 const server = http.createServer(app);
