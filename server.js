@@ -173,6 +173,8 @@ io.on('connection', (socket) => {
       console.log(`✅ Sent entries to Judge (${judgeName}) in room ${upperCode}`);
       io.to(upperCode).emit('startRankingPhase', { judgeName });
       console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
+      io.emit('sendAllEntries', { entries: anonymousEntries });
+      console.log(`✅ Broadcasted entries to all clients`);
     }
   });
 
