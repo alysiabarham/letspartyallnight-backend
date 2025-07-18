@@ -161,16 +161,29 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
-    const upperCode = roomCode.toUpperCase();
-    const room = rooms[upperCode];
-    if (room) {
-      room.judgeName = judgeName;
-      room.phase = 'ranking';
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+  if (room) {
+    room.judgeName = judgeName;
+    room.phase = 'ranking';
 
-      console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
-      io.to(upperCode).emit('startRankingPhase', { judgeName });
-    }
-  });
+    console.log(`🔔 Ranking phase started for ${upperCode}, judge: ${judgeName}`);
+    io.to(upperCode).emit('startRankingPhase', { judgeName });
+
+    // ✅ Wait briefly, then emit entries to Judge
+    setTimeout(() => {
+      const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
+      const anonymousEntries = room.entries.map(e => e.entry);
+
+      if (judgeSocket && anonymousEntries.length > 0) {
+        io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
+        console.log(`✅ Sent entries to Judge (${judgeName}) in room ${upperCode}`);
+      } else {
+        console.log(`❌ Could not send entries to Judge (${judgeName}) in room ${upperCode}`);
+      }
+    }, 500); // small delay to ensure Judge has joined
+  }
+});
 
   socket.on('submitRanking', ({ roomCode, ranking }) => {
     const upperCode = roomCode.toUpperCase();
