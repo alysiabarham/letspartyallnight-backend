@@ -202,6 +202,13 @@ io.on('connection', (socket) => {
     const room = rooms[upperCode];
     if (!room) return;
 
+    if (!entry || !isAlphanumeric(entry.replace(/\s+/g, ''))) return;
+
+    if (!entry || !isAlphanumeric(entry.replace(/\s+/g, ''))) {
+      console.log(`🚫 Invalid entry from ${playerName}: ${entry}`);
+      return;
+    }
+    
     room.entries.push({ playerName, entry });
     console.log(`Entry from ${playerName} in ${upperCode}: ${entry}`);
     io.to(upperCode).emit('newEntry', { entry });
