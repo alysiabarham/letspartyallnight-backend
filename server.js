@@ -8,6 +8,40 @@ const { Server } = require('socket.io');
 const app = express();
 const port = process.env.PORT || 10000;
 const rooms = {};
+const categories = [
+  "Best Ice Cream Flavors", "Things That Are Underrated", "What Helps You Relax",
+  "Favorite Breakfast Foods", "Most Useless College Majors", "Things You'd Bring to a Desert Island",
+  "Top Excuses for Being Late", "What to Avoid on a First Date", "Best Fast Food Chains",
+  "Worst Chores", "Most Annoying Sounds", "Best Ways to Spend a Rainy Day",
+  "Essential Road Trip Snacks", "Most Important Inventions", "Things You Can't Live Without",
+  "Best Pizza Toppings", "Worst Habits", "Favorite Things", "Best Types of Vacation",
+  "Best Coffee Drinks", "Worst Vegetable", "Best Dessert Toppings", "Most Comforting Foods",
+  "Best Breakfast Cereals", "Worst Candies", "Best Sandwich Fillings", "Most Refreshing Drinks",
+  "Best Potato Chip Flavors", "Worst Holiday Foods", "Best Condiments", "Most Satisfying Snacks",
+  "Best Fruits", "Worst Restaurant Experiences", "Best Cheeses", "Best Superheroes",
+  "Worst Reality TV Shows", "Most Iconic Movie Quotes", "Best Animated Movies",
+  "Worst Song to Hear on Repeat", "Best TV Show Endings", "Most Bingeworthy TV Series",
+  "Best Video Game Genres", "Fictional Villains You Love to Hate", "Best Board Games",
+  "Most Overrated Movies", "The GOAT in Music", "Worst Movie Tropes", "Best Music Genres",
+  "Most Underrated Cartoons", "Most Important Virtues", "Things That Are Truly Beautiful",
+  "Worst Ways to Die", "Most Important Life Lessons", "Best Ways to Learn",
+  "Most Annoying Personality Traits", "Best Qualities in a Friend", "Worst Things to Say",
+  "Most Important Freedoms", "Best Forms of Art", "Worst Excuses for Bad Behavior",
+  "Most Impactful Historical Events", "Best Ways to Give Back", "Worst Inventions", "Scams",
+  "Best Things to Yell in a Library", "Worst Places to Fall Asleep", "Most Embarrassing Moments",
+  "Best Comebacks", "Worst Pick-Up Lines", "Most Annoying Things People Do", "Best Animal Noises",
+  "Worst Superpowers", "Most Likely to Survive an Apocalypse", "Best Things to Find in Your Couch",
+  "Worst Things to Step On Barefoot", "Most Absurd Laws", "Best Pranks",
+  "Worst Things to Say at a Funeral", "Most Creative Ways to Procrastinate",
+  "Best Sports to Watch", "Worst Hobbies to Pick Up", "Fake Jobs", "Best Outdoor Activities",
+  "Worst Indoor Activities", "Best Books", "Most Challenging Skills to Learn",
+  "Best Ways to Exercise", "Worst Things About Social Media", "Best Places to Travel",
+  "Most Annoying Tech Problems", "Best Ways to Spend Money", "Worst Ways to Save Money",
+  "School Subjects That Should Exist", "Best Things to Collect", "Most Underrated Kitchen Utensils",
+  "Best Smells", "Worst Smells", "Medical/Health Myths", "Best Things to Do on a Long Flight",
+  "Worst Fashion Trends", "Most Overused Phrases", "Best Animals to Have as Pets",
+  "Worst Animals to Have as Pets", "Most Common Misconceptions", "Favorite Things", "Worst Things"
+];
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -143,11 +177,26 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('gameStarted', ({ roomCode, category }) => {
-    const upperCode = roomCode.toUpperCase();
-    console.log(`Game started in room ${upperCode} with category "${category}"`);
-    io.to(upperCode).emit('gameStarted', { category });
-  });
+  socket.on('gameStarted', ({ roomCode, roundLimit }) => {
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+  if (!room) return;
+
+  room.roundLimit = roundLimit || 5;
+  room.round = 1;
+  room.totalScores = {};
+  room.entries = [];
+  room.guesses = {};
+
+  const category = categories[Math.floor(Math.random() * categories.length)];
+  const judgeIndex = (room.round - 1) % room.players.length;
+  const judgeName = room.players[judgeIndex]?.name;
+  room.judgeName = judgeName;
+
+  console.log(`🎮 Game started in ${upperCode} | Round ${room.round}/${room.roundLimit} | Judge: ${judgeName}`);
+  io.to(upperCode).emit('gameStarted', { category });
+  io.to(upperCode).emit('startRankingPhase', { judgeName });
+});
 
   socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
     const upperCode = roomCode.toUpperCase();
@@ -238,6 +287,31 @@ io.on('connection', (socket) => {
       });
 
       console.log(`✅ Revealed results with scores for room ${upperCode}:`, results);
+
+      if (!room.totalScores) room.totalScores = {};
+for (const [name, result] of Object.entries(results)) {
+  room.totalScores[name] = (room.totalScores[name] || 0) + result.score;
+}
+
+if (room.round < room.roundLimit) {
+  room.round++;
+  room.entries = [];
+  room.guesses = {};
+  room.phase = 'entry';
+
+  const nextCategory = categories[Math.floor(Math.random() * categories.length)];
+  const judgeIndex = (room.round - 1) % room.players.length;
+  const judgeName = room.players[judgeIndex]?.name;
+  room.judgeName = judgeName;
+
+  console.log(`🔁 Starting round ${room.round} in ${upperCode} | Judge: ${judgeName}`);
+  io.to(upperCode).emit('gameStarted', { category: nextCategory });
+  io.to(upperCode).emit('startRankingPhase', { judgeName });
+} else {
+  io.to(upperCode).emit('finalScores', { scores: room.totalScores });
+  console.log(`🏁 Game ended in ${upperCode}. Final scores:`, room.totalScores);
+}
+
     }
   });
 
