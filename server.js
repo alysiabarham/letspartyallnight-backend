@@ -195,7 +195,6 @@ io.on('connection', (socket) => {
 
   console.log(`🎮 Game started in ${upperCode} | Round ${room.round}/${room.roundLimit} | Judge: ${judgeName}`);
   io.to(upperCode).emit('gameStarted', { category });
-  io.to(upperCode).emit('startRankingPhase', { judgeName });
 });
 
   socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
