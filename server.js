@@ -303,6 +303,13 @@ if (room.round < room.roundLimit) {
   const judgeName = room.players[judgeIndex]?.name;
   room.judgeName = judgeName;
 
+  const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
+  if (judgeSocket) {
+    const anonymousEntries = room.entries.map(e => e.entry);
+    io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
+    console.log(`✅ Sent entries to Judge (${judgeName}) via socket ${judgeSocket}`);
+  }
+
   console.log(`🔁 Starting round ${room.round} in ${upperCode} | Judge: ${judgeName}`);
   io.to(upperCode).emit('gameStarted', { category: nextCategory });
   io.to(upperCode).emit('startRankingPhase', { judgeName });
