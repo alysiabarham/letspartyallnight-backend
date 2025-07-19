@@ -224,6 +224,7 @@ socket.on('submitRanking', ({ roomCode, ranking }) => {
 
   console.log('Room players at time of guess:', room.players.map(p => p.name));
   console.log('Guesses received so far:', Object.keys(room.guesses));
+  console.log("🔍 Does room have playerName?", room.players.some(p => p.name === playerName));
 
   if (!room.guesses) room.guesses = {};
   room.guesses[playerName] = guess;
