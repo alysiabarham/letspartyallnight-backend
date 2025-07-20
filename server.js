@@ -6,6 +6,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
+  app.set('trust proxy', 1);
 const port = process.env.PORT || 10000;
 const rooms = {};
 const categories = [
@@ -142,8 +143,6 @@ io.on('connection', (socket) => {
   socket.on('joinGameRoom', ({ roomCode, playerName }) => {
   const upperCode = roomCode.toUpperCase();
 
-  if (!room.players) room.players = [];
-
   socket.rooms.forEach(r => {
     if (r !== socket.id) {
       socket.leave(r);
@@ -155,6 +154,8 @@ io.on('connection', (socket) => {
   console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
 
   const room = rooms[upperCode];
+  if (!room.players) room.players = [];
+
   if (room) {
     const existing = room.players.some(p => p.name === playerName);
     if (existing) {
