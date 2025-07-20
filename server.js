@@ -364,7 +364,10 @@ if (room.round < room.roundLimit) {
   const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
 
   console.log(`🔁 Starting round ${room.round} in ${upperCode} | Judge: ${judgeName}`);
-  io.to(upperCode).emit('gameStarted', { category: nextCategory });
+  io.to(upperCode).emit('gameStarted', {
+    category: nextCategory,
+    round: room.round
+  });
   io.to(upperCode).emit('startRankingPhase', { judgeName });
 } else {
   io.to(upperCode).emit('finalScores', { scores: room.totalScores });
