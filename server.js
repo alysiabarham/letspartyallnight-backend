@@ -142,6 +142,8 @@ io.on('connection', (socket) => {
   socket.on('joinGameRoom', ({ roomCode, playerName }) => {
   const upperCode = roomCode.toUpperCase();
 
+  if (!room.players) room.players = [];
+
   socket.rooms.forEach(r => {
     if (r !== socket.id) {
       socket.leave(r);
@@ -189,6 +191,7 @@ io.on('connection', (socket) => {
   const upperCode = roomCode.toUpperCase();
   const room = rooms[upperCode];
   if (!room) return;
+  if (!room.guesses) room.guesses = {};
 
   room.roundLimit = roundLimit || 5;
   room.round = 1;
@@ -301,14 +304,17 @@ io.on('connection', (socket) => {
     console.log('Guesses so far:', Object.keys(room.guesses || {}));
     console.log('Does room have playerName?', room.players.some(p => p.name === playerName));
 
-    if (!room.guesses) room.guesses = {};
     room.guesses[playerName] = guess;
+    if (!room.guesses) room.guesses = {};
 
     const player = room.players.find(p => p.name === playerName);
     if (player) player.hasGuessed = true;
 
-    const guessers = room.players.filter(p => p.name !== room.hostId && p.name !== room.judgeName);
-    const received = Object.keys(room.guesses).length;
+    const guessers = room.players.filter(p => p.name !== room.judgeName && p.name !== room.hostId);
+    const received = guessers.filter(p => room.guesses[p.name]).length;
+
+    console.log('Eligible guessers:', guessers.map(p => p.name));
+    console.log('Received valid guesses:', received);
 
     if (received >= guessers.length) {
       const judgeRanking = room.judgeRanking;
