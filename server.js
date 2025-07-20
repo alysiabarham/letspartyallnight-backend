@@ -206,16 +206,18 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (room.judgeName) {
-      const judgeSocket = room.players.find(p => p.name === room.judgeName)?.id;
-      if (judgeSocket) {
-        const anonymousEntries = room.entries.map(e => e.entry);
-       io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
-        console.log(`📨 Updated entries sent to Judge (${room.judgeName})`);
-      }
-    }
-
     room.entries.push({ playerName, entry });
+console.log(`Entry from ${playerName} in ${upperCode}: ${entry}`);
+io.to(upperCode).emit('newEntry', { entry });
+
+if (room.judgeName) {
+  const judgeSocket = room.players.find(p => p.name === room.judgeName)?.id;
+  if (judgeSocket) {
+    const anonymousEntries = room.entries.map(e => e.entry);
+    io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
+    console.log(`📨 Updated entries sent to Judge (${room.judgeName})`);
+  }
+}
     console.log(`Entry from ${playerName} in ${upperCode}: ${entry}`);
     io.to(upperCode).emit('newEntry', { entry });
   });
