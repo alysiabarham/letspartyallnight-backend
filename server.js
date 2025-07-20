@@ -141,12 +141,6 @@ io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
   socket.on('joinGameRoom', ({ roomCode, playerName }) => {
-    socket.emit('roomState', {
-      players: room.players,
-      phase: room.phase,
-      round: room.round,
-      judgeName: room.judgeName,
-    });
   const upperCode = roomCode.toUpperCase();
 
   socket.rooms.forEach(r => {
@@ -171,6 +165,13 @@ io.on('connection', (socket) => {
     } else {
       room.players.push({ id: socket.id, name: playerName });
     }
+    
+    socket.emit('roomState', {
+      players: room.players,
+      phase: room.phase,
+      round: room.round,
+      judgeName: room.judgeName,
+    });
 
     if (room.judgeName === playerName && room.entries.length > 0) {
       const anonymousEntries = room.entries.map(e => e.entry);
