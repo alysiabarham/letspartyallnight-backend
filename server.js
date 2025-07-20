@@ -208,7 +208,7 @@ io.on('connection', (socket) => {
       console.log(`🚫 Invalid entry from ${playerName}: ${entry}`);
       return;
     }
-    
+
     room.entries.push({ playerName, entry });
     console.log(`Entry from ${playerName} in ${upperCode}: ${entry}`);
     io.to(upperCode).emit('newEntry', { entry });
@@ -311,7 +311,7 @@ if (room.round < room.roundLimit) {
   room.judgeName = judgeName;
 
   const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
-  if (judgeSocket) {
+  if (judgeSocket && room.entries.length > 0) {
     const anonymousEntries = room.entries.map(e => e.entry);
     io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
     console.log(`✅ Sent entries to Judge (${judgeName}) via socket ${judgeSocket}`);
