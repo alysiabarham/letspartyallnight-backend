@@ -206,15 +206,19 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (room.judgeName) {
+      const judgeSocket = room.players.find(p => p.name === room.judgeName)?.id;
+      if (judgeSocket) {
+        const anonymousEntries = room.entries.map(e => e.entry);
+       io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
+        console.log(`📨 Updated entries sent to Judge (${room.judgeName})`);
+      }
+    }
+
     room.entries.push({ playerName, entry });
     console.log(`Entry from ${playerName} in ${upperCode}: ${entry}`);
     io.to(upperCode).emit('newEntry', { entry });
   });
-
-  socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
-  const upperCode = roomCode.toUpperCase();
-  const room = rooms[upperCode];
-  if (!room) return;
 
   socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
     const upperCode = roomCode.toUpperCase();
@@ -247,16 +251,6 @@ io.on('connection', (socket) => {
      console.log(`⚠️ No entries available to send to Judge`);
     }
   });
-
-  const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
-  if (judgeSocket && room.entries.length > 0) {
-    const anonymousEntries = room.entries.map(e => e.entry);
-    io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
-    console.log(`✅ Sent entries to Judge (${judgeName}) via socket ${judgeSocket}`);
-  } else {
-    console.warn(`⚠️ Could not send entries to Judge (${judgeName}) – missing socket or entries`);
-  }
-});
 
   const shuffleArray = (arr) => {
     return [...arr].sort(() => Math.random() - 0.5);
@@ -362,7 +356,7 @@ if (room.round < room.roundLimit) {
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
   });
-});
+  });
 
 function generateRoomCode() {
   let code;
