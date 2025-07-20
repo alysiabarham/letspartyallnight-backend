@@ -140,42 +140,50 @@ io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
   socket.on('joinGameRoom', ({ roomCode, playerName }) => {
-    const upperCode = roomCode.toUpperCase();
+  const upperCode = roomCode.toUpperCase();
 
-    socket.rooms.forEach(r => {
-      if (r !== socket.id) {
-        socket.leave(r);
-        console.log(`${socket.id} left room ${r}`);
-      }
-    });
-
-    socket.join(upperCode);
-    console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
-
-    const room = rooms[upperCode];
-    if (room) {
-      const existing = room.players.some(p => p.name === playerName);
-      if (existing) {
-        room.players = room.players.map(p =>
-          p.name === playerName ? { ...p, id: socket.id } : p
-        );
-      } else {
-        room.players.push({ id: socket.id, name: playerName });
-      }
-
-      if (room.judgeName === playerName && room.entries.length > 0) {
-        const anonymousEntries = room.entries.map(e => e.entry);
-        io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
-        console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
-      }
-
-      io.to(upperCode).emit('playerJoined', {
-        playerName,
-        players: room.players,
-        message: `${playerName} has joined the game.`
-      });
+  socket.rooms.forEach(r => {
+    if (r !== socket.id) {
+      socket.leave(r);
+      console.log(`${socket.id} left room ${r}`);
     }
   });
+
+  socket.join(upperCode);
+  console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
+
+  const room = rooms[upperCode];
+  if (room) {
+    const existing = room.players.some(p => p.name === playerName);
+    if (existing) {
+      room.players = room.players.map(p =>
+        p.name === playerName ? { ...p, id: socket.id } : p
+      );
+    } else {
+      room.players.push({ id: socket.id, name: playerName });
+    }
+
+    if (room.judgeName === playerName && room.entries.length > 0) {
+      const anonymousEntries = room.entries.map(e => e.entry);
+      io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
+      console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
+    }
+
+    io.to(upperCode).emit('playerJoined', {
+      playerName,
+      players: room.players,
+      message: `${playerName} has joined the game.`
+    });
+
+    // ✅ Send live game state to frontend
+    socket.emit('roomState', {
+      players: room.players,
+      phase: room.phase,
+      round: room.round,
+      judgeName: room.judgeName,
+    });
+  }
+});
 
   socket.on('gameStarted', ({ roomCode, roundLimit }) => {
   const upperCode = roomCode.toUpperCase();
@@ -284,6 +292,11 @@ io.on('connection', (socket) => {
     const room = rooms[upperCode];
     if (!room) return;
 
+    if (room.guesses[playerName]) {
+      console.log(`🚫 Player ${playerName} already submitted a guess. Ignoring.`);
+      return;
+    }
+
     console.log('Room players at guess time:', room.players.map(p => p.name));
     console.log('Guesses so far:', Object.keys(room.guesses || {}));
     console.log('Does room have playerName?', room.players.some(p => p.name === playerName));
@@ -291,12 +304,18 @@ io.on('connection', (socket) => {
     if (!room.guesses) room.guesses = {};
     room.guesses[playerName] = guess;
 
+    const player = room.players.find(p => p.name === playerName);
+    if (player) player.hasGuessed = true;
+
     const guessers = room.players.filter(p => p.name !== room.hostId && p.name !== room.judgeName);
     const received = Object.keys(room.guesses).length;
 
     if (received >= guessers.length) {
       const judgeRanking = room.judgeRanking;
       const results = {};
+
+    console.log('Guessers:', guessers.map(p => p.name));
+    console.log('Received guesses:', Object.keys(room.guesses));
 
       for (const [name, guess] of Object.entries(room.guesses)) {
         let score = 0;
