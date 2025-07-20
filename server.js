@@ -202,8 +202,6 @@ io.on('connection', (socket) => {
     const room = rooms[upperCode];
     if (!room) return;
 
-    if (!entry || !isAlphanumeric(entry.replace(/\s+/g, ''))) return;
-
     if (!entry || !isAlphanumeric(entry.replace(/\s+/g, ''))) {
       console.log(`🚫 Invalid entry from ${playerName}: ${entry}`);
       return;
@@ -215,18 +213,24 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
-    const upperCode = roomCode.toUpperCase();
-    const room = rooms[upperCode];
-    if (!room) return;
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+  if (!room) return;
 
-    room.judgeName = judgeName;
-    room.phase = 'ranking';
-    console.log(`🔔 Ranking phase started in ${upperCode} by judge ${judgeName}`);
-    io.to(upperCode).emit('startRankingPhase', { judgeName });
+  room.judgeName = judgeName;
+  room.phase = 'ranking';
+  console.log(`🔔 Ranking phase started in ${upperCode} by judge ${judgeName}`);
+  io.to(upperCode).emit('startRankingPhase', { judgeName });
 
+  const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
+  if (judgeSocket && room.entries.length > 0) {
     const anonymousEntries = room.entries.map(e => e.entry);
-    io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
-  });
+    io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
+    console.log(`✅ Sent entries to Judge (${judgeName}) via socket ${judgeSocket}`);
+  } else {
+    console.warn(`⚠️ Could not send entries to Judge (${judgeName}) – missing socket or entries`);
+  }
+});
 
   const shuffleArray = (arr) => {
     return [...arr].sort(() => Math.random() - 0.5);
@@ -313,6 +317,7 @@ if (room.round < room.roundLimit) {
   const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
   if (judgeSocket && room.entries.length > 0) {
     const anonymousEntries = room.entries.map(e => e.entry);
+    console.log(`🕵️ Found Judge Socket for ${judgeName}:`, judgeSocket);
     io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
     console.log(`✅ Sent entries to Judge (${judgeName}) via socket ${judgeSocket}`);
   }
