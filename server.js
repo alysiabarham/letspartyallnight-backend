@@ -143,6 +143,21 @@ io.on('connection', (socket) => {
   socket.on('joinGameRoom', ({ roomCode, playerName }) => {
   const upperCode = roomCode.toUpperCase();
 
+  socket.emit('roomState', {
+    players: room.players,
+    phase: room.phase,
+    round: room.round,
+    judgeName: room.judgeName,
+    category: room.category, // ✅ add this!
+  });
+
+    const judge = room.players.find(p => p.name === room.judgeName);
+    if (room.phase === 'ranking' && room.judgeName === playerName && !judge?.hasRanked) {
+      const anonymousEntries = room.entries.map(e => e.entry);
+      io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
+      console.log(`✅ Re-sent entries to Judge (${playerName}) on refresh during ranking phase`);
+    }
+
   socket.rooms.forEach(r => {
     if (r !== socket.id) {
       socket.leave(r);
@@ -157,6 +172,7 @@ io.on('connection', (socket) => {
   if (!room.players) room.players = [];
 
   if (room) {
+    room.phase = 'entry'; // ✅ mark new phase start
     const existing = room.players.some(p => p.name === playerName);
     if (existing) {
       room.players = room.players.map(p =>
@@ -165,12 +181,13 @@ io.on('connection', (socket) => {
     } else {
       room.players.push({ id: socket.id, name: playerName });
     }
-    
+
     socket.emit('roomState', {
       players: room.players,
       phase: room.phase,
       round: room.round,
       judgeName: room.judgeName,
+      category: room.category,
     });
 
     if (room.judgeName === playerName && room.entries.length > 0) {
@@ -184,14 +201,6 @@ io.on('connection', (socket) => {
       players: room.players,
       message: `${playerName} has joined the game.`
     });
-
-    // ✅ Send live game state to frontend
-    socket.emit('roomState', {
-      players: room.players,
-      phase: room.phase,
-      round: room.round,
-      judgeName: room.judgeName,
-    });
   }
 });
 
@@ -200,7 +209,12 @@ io.on('connection', (socket) => {
   const room = rooms[upperCode];
   if (!room) return;
   if (!room.guesses) room.guesses = {};
-
+    socket.emit('roomState', {
+      players: room.players,
+      phase: room.phase,
+      round: room.round,
+      judgeName: room.judgeName,
+    });
   room.roundLimit = roundLimit || 5;
   room.round = 1;
   room.totalScores = {};
@@ -282,6 +296,9 @@ io.on('connection', (socket) => {
   };
 
   socket.on('submitRanking', ({ roomCode, ranking }) => {
+    room.phase = 'ranking'; // ✅ tell frontend this is ranking phase
+    const judge = room.players.find(p => p.name === room.judgeName);
+    if (judge) judge.hasRanked = true;
     const upperCode = roomCode.toUpperCase();
     const room = rooms[upperCode];
     if (!room) return;
