@@ -141,6 +141,12 @@ io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
   socket.on('joinGameRoom', ({ roomCode, playerName }) => {
+    socket.emit('roomState', {
+      players: room.players,
+      phase: room.phase,
+      round: room.round,
+      judgeName: room.judgeName,
+    });
   const upperCode = roomCode.toUpperCase();
 
   socket.rooms.forEach(r => {
@@ -206,8 +212,11 @@ io.on('connection', (socket) => {
   room.judgeName = judgeName;
 
   console.log(`🎮 Game started in ${upperCode} | Round ${room.round}/${room.roundLimit} | Judge: ${judgeName}`);
-  io.to(upperCode).emit('gameStarted', { category });
-});
+  io.to(upperCode).emit('gameStarted', {
+    category,
+    round: room.round,
+  });
+  });
 
   socket.on('submitEntry', ({ roomCode, playerName, entry }) => {
     const upperCode = roomCode.toUpperCase();
@@ -242,7 +251,9 @@ io.on('connection', (socket) => {
     room.phase = 'ranking';
 
     console.log(`🔔 Ranking phase started in ${upperCode} by judge ${judgeName}`);
-    io.to(upperCode).emit('startRankingPhase', { judgeName });
+    io.to(upperCode).emit('startRankingPhase', {
+      judgeName: room.judgeName
+    });
 
     const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
 
@@ -352,12 +363,13 @@ for (const [name, result] of Object.entries(results)) {
 
 if (room.round < room.roundLimit) {
   room.round++;
+  const judgeIndex = (room.round - 1) % room.players.length;
+  room.judgeName = room.players[judgeIndex]?.name || null;
   room.entries = [];
   room.guesses = {};
   room.phase = 'entry';
 
   const nextCategory = categories[Math.floor(Math.random() * categories.length)];
-  const judgeIndex = (room.round - 1) % room.players.length;
   const judgeName = room.players[judgeIndex]?.name;
   room.judgeName = judgeName;
 
