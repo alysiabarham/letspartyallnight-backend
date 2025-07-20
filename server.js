@@ -207,19 +207,17 @@ io.on('connection', (socket) => {
     }
 
     room.entries.push({ playerName, entry });
-console.log(`Entry from ${playerName} in ${upperCode}: ${entry}`);
-io.to(upperCode).emit('newEntry', { entry });
-
-if (room.judgeName) {
-  const judgeSocket = room.players.find(p => p.name === room.judgeName)?.id;
-  if (judgeSocket) {
-    const anonymousEntries = room.entries.map(e => e.entry);
-    io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
-    console.log(`📨 Updated entries sent to Judge (${room.judgeName})`);
-  }
-}
     console.log(`Entry from ${playerName} in ${upperCode}: ${entry}`);
     io.to(upperCode).emit('newEntry', { entry });
+
+    if (room.judgeName) {
+      const judgeSocket = room.players.find(p => p.name === room.judgeName)?.id;
+     if (judgeSocket) {
+       const anonymousEntries = room.entries.map(e => e.entry);
+        io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
+       console.log(`📨 Updated entries sent to Judge (${room.judgeName})`);
+     }
+    }
   });
 
   socket.on('startRankingPhase', ({ roomCode, judgeName }) => {
@@ -337,12 +335,6 @@ if (room.round < room.roundLimit) {
   room.judgeName = judgeName;
 
   const judgeSocket = room.players.find(p => p.name === judgeName)?.id;
-  if (judgeSocket && room.entries.length > 0) {
-    const anonymousEntries = room.entries.map(e => e.entry);
-    console.log(`🕵️ Found Judge Socket for ${judgeName}:`, judgeSocket);
-    io.to(judgeSocket).emit('sendAllEntries', { entries: anonymousEntries });
-    console.log(`✅ Sent entries to Judge (${judgeName}) via socket ${judgeSocket}`);
-  }
 
   console.log(`🔁 Starting round ${room.round} in ${upperCode} | Judge: ${judgeName}`);
   io.to(upperCode).emit('gameStarted', { category: nextCategory });
