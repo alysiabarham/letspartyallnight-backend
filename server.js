@@ -207,16 +207,11 @@ io.on('connection', (socket) => {
   socket.on('gameStarted', ({ roomCode, roundLimit }) => {
   const upperCode = roomCode.toUpperCase();
   const room = rooms[upperCode];
-  if (!room) return;
   if (!room.guesses) room.guesses = {};
-    socket.emit('roomState', {
-      players: room.players,
-      phase: room.phase,
-      round: room.round,
-      judgeName: room.judgeName,
-    });
+
   room.roundLimit = roundLimit || 5;
   room.round = 1;
+  room.phase = 'entry';
   room.totalScores = {};
   room.entries = [];
   room.guesses = {};
@@ -237,6 +232,12 @@ io.on('connection', (socket) => {
     const upperCode = roomCode.toUpperCase();
     const room = rooms[upperCode];
     if (!room) return;
+    socket.emit('roomState', {
+      players: room.players,
+      phase: room.phase,
+      round: room.round,
+      judgeName: room.judgeName,
+    });
 
     if (!entry || !isAlphanumeric(entry.replace(/\s+/g, ''))) {
       console.log(`🚫 Invalid entry from ${playerName}: ${entry}`);
