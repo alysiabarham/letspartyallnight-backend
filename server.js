@@ -201,13 +201,6 @@ io.on('connection', (socket) => {
   });
 });
 
-    if (room.judgeName === playerName && room.entries.length > 0) {
-      const anonymousEntries = room.entries.map(e => e.entry);
-      io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
-      console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
-    }
-});
-
   socket.on('gameStarted', ({ roomCode, roundLimit }) => {
   const upperCode = roomCode.toUpperCase();
   const room = rooms[upperCode];
@@ -415,6 +408,7 @@ if (room.round < room.roundLimit) {
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
   });
+});
 
 function generateRoomCode() {
   let code;
