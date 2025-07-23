@@ -143,65 +143,69 @@ io.on('connection', (socket) => {
   socket.on('joinGameRoom', ({ roomCode, playerName }) => {
   const upperCode = roomCode.toUpperCase();
 
+  // Initialize room if it doesn't exist
+  if (!rooms[upperCode]) {
+    rooms[upperCode] = {
+      players: [],
+      entries: [],
+      guesses: {},
+      judgeRanking: [],
+      selectedEntries: [],
+      totalScores: {},
+      round: 1,
+      roundLimit: 5,
+      phase: 'entry',
+      judgeName: null,
+      hostId: socket.id,
+      category: null,
+    };
+  }
+
+  const room = rooms[upperCode];
+
+  // Add or update player
+  const existing = room.players.some(p => p.name === playerName);
+  if (existing) {
+    room.players = room.players.map(p =>
+      p.name === playerName ? { ...p, id: socket.id } : p
+    );
+  } else {
+    room.players.push({ id: socket.id, name: playerName });
+  }
+
+  socket.join(upperCode);
+  console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
+
+  // Emit room state after initialization
   socket.emit('roomState', {
     players: room.players,
     phase: room.phase,
     round: room.round,
     judgeName: room.judgeName,
-    category: room.category, // ✅ add this!
+    category: room.category,
   });
 
-    const judge = room.players.find(p => p.name === room.judgeName);
-    if (room.phase === 'ranking' && room.judgeName === playerName && !judge?.hasRanked) {
-      const anonymousEntries = room.entries.map(e => e.entry);
-      io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
-      console.log(`✅ Re-sent entries to Judge (${playerName}) on refresh during ranking phase`);
-    }
+  // If judge has not ranked yet and we're in ranking phase, re-send entries
+  const judge = room.players.find(p => p.name === room.judgeName);
+  if (room.phase === 'ranking' && room.judgeName === playerName && !judge?.hasRanked) {
+    const anonymousEntries = room.entries.map(e => e.entry);
+    io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
+    console.log(`✅ Re-sent entries to Judge (${playerName}) on refresh during ranking phase`);
+  }
 
-  socket.rooms.forEach(r => {
-    if (r !== socket.id) {
-      socket.leave(r);
-      console.log(`${socket.id} left room ${r}`);
-    }
+  // Notify all others of the new join
+  io.to(upperCode).emit('playerJoined', {
+    playerName,
+    players: room.players,
+    message: `${playerName} has joined the game.`
   });
-
-  socket.join(upperCode);
-  console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
-
-  const room = rooms[upperCode];
-  if (!room.players) room.players = [];
-
-  if (room) {
-    room.phase = 'entry'; // ✅ mark new phase start
-    const existing = room.players.some(p => p.name === playerName);
-    if (existing) {
-      room.players = room.players.map(p =>
-        p.name === playerName ? { ...p, id: socket.id } : p
-      );
-    } else {
-      room.players.push({ id: socket.id, name: playerName });
-    }
-
-    socket.emit('roomState', {
-      players: room.players,
-      phase: room.phase,
-      round: room.round,
-      judgeName: room.judgeName,
-      category: room.category,
-    });
+});
 
     if (room.judgeName === playerName && room.entries.length > 0) {
       const anonymousEntries = room.entries.map(e => e.entry);
       io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
       console.log(`✅ Re-sent entries to Judge (${playerName}) on reconnect`);
     }
-
-    io.to(upperCode).emit('playerJoined', {
-      playerName,
-      players: room.players,
-      message: `${playerName} has joined the game.`
-    });
-  }
 });
 
   socket.on('gameStarted', ({ roomCode, roundLimit }) => {
@@ -410,7 +414,6 @@ if (room.round < room.roundLimit) {
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
-  });
   });
 
 function generateRoomCode() {
