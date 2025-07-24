@@ -1,5 +1,15 @@
 const express = require('express');
 const cors = require('cors');
+app.use(cors({
+  origin: [
+    'https://letspartyallnight-frontend.vercel.app',
+    'https://letspartyallnight.games',
+    'https://www.letspartyallnight.games'
+  ],
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type'],
+  credentials: true
+}));
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
@@ -45,12 +55,9 @@ const categories = [
 ];
 
 const server = http.createServer(app);
-const io = new Server(server, {
+const io = require('socket.io')(server, {
   cors: {
-    origin: [
-      'https://letspartyallnight.games',
-      'https://www.letspartyallnight.games'
-    ],
+    origin: 'https://letspartyallnight-frontend.vercel.app',
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -59,19 +66,6 @@ const io = new Server(server, {
 // --- Middleware ---
 app.use(helmet());
 app.use(express.json());
-
-const corsOptions = {
-  origin: [
-    'https://letspartyallnight.games',
-    'https://www.letspartyallnight.games'
-  ],
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type'],
-  credentials: true
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
 
 // --- Rate Limiting ---
 const apiLimiter = rateLimit({
@@ -142,6 +136,7 @@ io.on('connection', (socket) => {
 
   socket.on('joinGameRoom', ({ roomCode, playerName }) => {
   const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
 
   // Initialize room if it doesn't exist
   if (!rooms[upperCode]) {
@@ -160,8 +155,6 @@ io.on('connection', (socket) => {
       category: null,
     };
   }
-
-  const room = rooms[upperCode];
 
   // Add or update player
   const existing = room.players.some(p => p.name === playerName);
@@ -191,6 +184,9 @@ io.on('connection', (socket) => {
     const anonymousEntries = room.entries.map(e => e.entry);
     io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
     console.log(`✅ Re-sent entries to Judge (${playerName}) on refresh during ranking phase`);
+  if (!room.players.some(p => p.id === socket.id)) {
+    socket.join(upperCode);
+  }
   }
 
   // Notify all others of the new join
@@ -294,12 +290,13 @@ io.on('connection', (socket) => {
   };
 
   socket.on('submitRanking', ({ roomCode, ranking }) => {
-    room.phase = 'ranking'; // ✅ tell frontend this is ranking phase
-    const judge = room.players.find(p => p.name === room.judgeName);
-    if (judge) judge.hasRanked = true;
     const upperCode = roomCode.toUpperCase();
     const room = rooms[upperCode];
     if (!room) return;
+
+    room.phase = 'ranking';
+    const judge = room.players.find(p => p.name === room.judgeName);
+    if (judge) judge.hasRanked = true;
 
     room.judgeRanking = ranking;
     room.selectedEntries = ranking;
