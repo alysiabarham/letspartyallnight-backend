@@ -2,13 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 app.use(cors({
-  origin: [
-    'https://letspartyallnight-frontend.vercel.app',
-    'https://letspartyallnight.games',
-    'https://www.letspartyallnight.games'
-  ],
+  origin: 'https://letspartyallnight-frontend.vercel.app',
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type'],
   credentials: true
 }));
 const helmet = require('helmet');
