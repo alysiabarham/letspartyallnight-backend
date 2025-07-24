@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const app = express();
 app.use(cors({
   origin: [
     'https://letspartyallnight-frontend.vercel.app',
@@ -15,7 +16,6 @@ const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
 
-const app = express();
   app.set('trust proxy', 1);
 const port = process.env.PORT || 10000;
 const rooms = {};
@@ -29,7 +29,7 @@ const categories = [
   "Best Coffee Drinks", "Worst Vegetable", "Best Dessert Toppings", "Most Comforting Foods",
   "Best Breakfast Cereals", "Worst Candies", "Best Sandwich Fillings", "Most Refreshing Drinks",
   "Best Potato Chip Flavors", "Worst Holiday Foods", "Best Condiments", "Most Satisfying Snacks",
-  "Best Fruits", "Worst Restaurant Experiences", "Best Cheeses", "Best Superheroes",
+  "Best Fruits", "Worst Restaurant Experiences", "Best Cheeses", "Best Superheroes", "Foods I Would Never Try",
   "Worst Reality TV Shows", "Most Iconic Movie Quotes", "Best Animated Movies",
   "Worst Song to Hear on Repeat", "Best TV Show Endings", "Most Bingeworthy TV Series",
   "Best Video Game Genres", "Fictional Villains You Love to Hate", "Best Board Games",
@@ -51,7 +51,7 @@ const categories = [
   "School Subjects That Should Exist", "Best Things to Collect", "Most Underrated Kitchen Utensils",
   "Best Smells", "Worst Smells", "Medical/Health Myths", "Best Things to Do on a Long Flight",
   "Worst Fashion Trends", "Most Overused Phrases", "Best Animals to Have as Pets",
-  "Worst Animals to Have as Pets", "Most Common Misconceptions", "Favorite Things", "Worst Things"
+  "Worst Animals to Have as Pets", "Most Common Misconceptions", "Favorite Things", "Worst Things",
 ];
 
 const server = http.createServer(app);
