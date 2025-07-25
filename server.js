@@ -1,11 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
-app.use(cors({
-  origin: 'https://letspartyallnight-frontend.vercel.app',
-  methods: ['GET', 'POST'],
-  credentials: true
-}));
+const allowedOrigins = [
+  'https://letspartyallnight-frontend.vercel.app',
+  'https://letspartyallnight.games',
+  'https://www.letspartyallnight.games'
+];
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
@@ -50,17 +50,38 @@ const categories = [
 ];
 
 const server = http.createServer(app);
-const io = require('socket.io')(server, {
+const io = new Server(server, {
   cors: {
-    origin: 'https://letspartyallnight-frontend.vercel.app',
+    origin: (origin, callback) => {
+      console.log('Incoming origin:', origin);
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log('Blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true
-  }
+  },
+  transports: ['websocket'],
+  allowEIO3: true
 });
 
 // --- Middleware ---
 app.use(helmet());
 app.use(express.json());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 
 // --- Rate Limiting ---
 const apiLimiter = rateLimit({
