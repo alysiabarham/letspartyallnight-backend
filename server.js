@@ -148,11 +148,57 @@ app.post('/join-room', apiLimiter, (req, res) => {
 
 // --- Socket.IO Events ---
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
+  console.log(`⚡ Socket connected: ${socket.id}`);
 
-  socket.on('joinGameRoom', ({ roomCode, playerName }) => {
+socket.on('joinGameRoom', ({ roomCode, playerName }) => {
   const upperCode = roomCode.toUpperCase();
-  const room = rooms[upperCode];
+
+  // 🚧 Input validation
+  if (
+    typeof roomCode !== 'string' ||
+    typeof playerName !== 'string' ||
+    !/^[a-zA-Z0-9]+$/.test(playerName) ||
+    playerName.length > 20
+  ) {
+    console.log(`🚨 Invalid join from ${socket.id} — blocked`);
+    socket.emit('joinError', { message: 'Invalid room code or name.' });
+    return;
+  }
+
+  let room = rooms[upperCode];
+
+  // 🆕 If room doesn't exist, bail (or optionally create it)
+  if (!room) {
+    socket.emit('joinError', { message: 'Room does not exist.' });
+    return;
+  }
+
+  // 🔐 Prevent duplicate names
+  const nameTaken = room.players.some(p => p.name === playerName);
+  if (nameTaken) {
+    console.log(`⚠️ Name already taken in ${upperCode}: ${playerName}`);
+    socket.emit('joinError', { message: 'Name already taken in this room.' });
+    return;
+  }
+
+  // ✅ Safe join
+  const newPlayer = { id: socket.id, name: playerName };
+  room.players.push(newPlayer);
+  socket.join(upperCode);
+
+  console.log(`🌐 ${playerName} joined ${upperCode}`);
+  io.to(upperCode).emit('playerJoined', {
+    playerName,
+    players: room.players
+  });
+
+  socket.emit('roomState', {
+    players: room.players,
+    phase: room.phase,
+    round: room.round,
+    judgeName: room.judgeName,
+    category: room.category
+  });
 
   // Initialize room if it doesn't exist
   if (!rooms[upperCode]) {
