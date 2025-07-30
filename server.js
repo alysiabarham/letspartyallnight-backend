@@ -4,7 +4,8 @@ const app = express();
 const allowedOrigins = [
   'https://letspartyallnight-frontend.vercel.app',
   'https://letspartyallnight.games',
-  'https://www.letspartyallnight.games'
+  'https://www.letspartyallnight.games',
+  'https://letspartyallnight-frontend-74ga0qmkq-alysia-barhams-projects.vercel.app'
 ];
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -53,12 +54,10 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      console.log('Incoming origin:', origin);
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.log('Blocked origin:', origin);
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error('Socket.IO CORS blocked: ' + origin));
       }
     },
     methods: ['GET', 'POST'],
