@@ -64,7 +64,6 @@ const io = new Server(server, {
     credentials: true
   },
   transports: ['websocket'],
-  allowEIO3: true
 });
 
 // --- Middleware ---
