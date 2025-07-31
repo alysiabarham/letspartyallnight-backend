@@ -5,7 +5,8 @@ const allowedOrigins = [
   'https://letspartyallnight-frontend.vercel.app',
   'https://letspartyallnight.games',
   'https://www.letspartyallnight.games',
-  'https://letspartyallnight-frontend-74ga0qmkq-alysia-barhams-projects.vercel.app'
+  'https://letspartyallnight-frontend-74ga0qmkq-alysia-barhams-projects.vercel.app',
+  undefined // ✅ allow localhost and undefined origins for dev
 ];
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -64,6 +65,9 @@ const io = new Server(server, {
     credentials: true
   },
   transports: ['websocket'],
+});
+app.all('/socket.io/*', (req, res) => {
+  res.status(400).send('Polling transport blocked');
 });
 
 // --- Middleware ---
@@ -127,7 +131,7 @@ app.post('/join-room', apiLimiter, (req, res) => {
   if (!roomCode || !isAlphanumeric(roomCode) || !playerId || !isAlphanumeric(playerId)) {
     return res.status(400).json({ error: 'Room code and player name must be alphanumeric.' });
   }
-  
+
 app.all('/socket.io/*', (req, res) => {
   res.status(400).send('Polling disabled');
 });
@@ -176,12 +180,12 @@ socket.on('joinGameRoom', ({ roomCode, playerName }) => {
   }
 
   // 🔐 Prevent duplicate names
-  const nameTaken = room.players.some(p => p.name === playerName);
-  if (nameTaken) {
-    console.log(`⚠️ Name already taken in ${upperCode}: ${playerName}`);
-    socket.emit('joinError', { message: 'Name already taken in this room.' });
-    return;
-  }
+  const nameTaken = room.players.some(p => p.name === playerName && p.id !== socket.id);
+if (nameTaken) {
+  console.log(`⚠️ Name already taken in ${upperCode}: ${playerName}`);
+  socket.emit('joinError', { message: 'Name already taken in this room.' });
+  return;
+}
 
   // ✅ Safe join
   const newPlayer = { id: socket.id, name: playerName };
