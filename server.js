@@ -127,6 +127,10 @@ app.post('/join-room', apiLimiter, (req, res) => {
   if (!roomCode || !isAlphanumeric(roomCode) || !playerId || !isAlphanumeric(playerId)) {
     return res.status(400).json({ error: 'Room code and player name must be alphanumeric.' });
   }
+  
+app.all('/socket.io/*', (req, res) => {
+  res.status(400).send('Polling disabled');
+});
 
   const room = rooms[roomCode.toUpperCase()];
   if (!room) return res.status(404).json({ error: 'Room not found.' });
