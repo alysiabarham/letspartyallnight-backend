@@ -132,10 +132,6 @@ app.post('/join-room', apiLimiter, (req, res) => {
     return res.status(400).json({ error: 'Room code and player name must be alphanumeric.' });
   }
 
-app.all('/socket.io/*', (req, res) => {
-  res.status(400).send('Polling disabled');
-});
-
   const room = rooms[roomCode.toUpperCase()];
   if (!room) return res.status(404).json({ error: 'Room not found.' });
 
@@ -188,10 +184,6 @@ if (nameTaken) {
 }
 
   // ✅ Safe join
-  const newPlayer = { id: socket.id, name: playerName };
-  room.players.push(newPlayer);
-  socket.join(upperCode);
-
   console.log(`🌐 ${playerName} joined ${upperCode}`);
   io.to(upperCode).emit('playerJoined', {
     playerName,
@@ -252,9 +244,6 @@ if (nameTaken) {
     const anonymousEntries = room.entries.map(e => e.entry);
     io.to(socket.id).emit('sendAllEntries', { entries: anonymousEntries });
     console.log(`✅ Re-sent entries to Judge (${playerName}) on refresh during ranking phase`);
-  if (!room.players.some(p => p.id === socket.id)) {
-    socket.join(upperCode);
-  }
   }
 
   // Notify all others of the new join
