@@ -1,0 +1,9 @@
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.nodePath": "./node_modules/eslint",
+  "eslint.validate": ["typescript"],
+  "prettier.requireConfig": true
+}

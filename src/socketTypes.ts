@@ -8,7 +8,7 @@ import {
   Player,
 } from "./types";
 
-export interface ClientToServerEvents {
+export type ClientToServerEvents = {
   joinGameRoom: (data: { roomCode: string; playerName: string }) => void;
   gameStarted: (data: { roomCode: string; roundLimit?: number }) => void;
   submitEntry: (data: {
@@ -22,7 +22,7 @@ export interface ClientToServerEvents {
   submitGuess: (data: SubmitGuessPayload) => void;
 }
 
-export interface ServerToClientEvents {
+export type ServerToClientEvents = {
   joinError: (data: { message: string }) => void;
   playerJoined: (data: {
     playerName: string;

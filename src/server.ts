@@ -216,13 +216,15 @@ app.get("/", (req, res) => {
   res.send("Hello from the Let's Party All Night backend!");
 });
 
+type HostRequestBody = { hostId: string };
+
 app.post("/create-room", createRoomLimiter, (req, res) => {
-  const hostId = req.body.hostId;
+  const { hostId } = req.body as HostRequestBody;
   if (!hostId || !isAlphanumeric(hostId)) {
     return res.status(400).json({ error: "Host name must be alphanumeric." });
   }
-
-  const roomCode = generateRoomCode();
+  type JoinRoomPayload = { roomCode: string };
+  const { roomCode } = req.body as JoinRoomPayload;
   const newRoom = createRoom(roomCode, hostId);
   newRoom.players.push({ id: hostId, name: hostId });
   rooms[roomCode] = newRoom;
@@ -248,6 +250,12 @@ app.post("/join-room", apiLimiter, (req, res) => {
       .json({ error: "Room code and player name must be alphanumeric." });
   }
 
+  const rooms: Record<string, RoomData> = {};
+  type RoomData = {
+    hostId: string;
+    players: string[];
+    // etc...
+  };
   const room = rooms[roomCode.toUpperCase()];
   if (!room) return res.status(404).json({ error: "Room not found." });
 
@@ -283,7 +291,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    let room = rooms[upperCode];
+    const room = rooms[upperCode];
 
     // 🆕 If room doesn't exist, bail (or optionally create it)
     if (!room) {
@@ -333,6 +341,10 @@ io.on("connection", (socket) => {
       room.players.push({ id: socket.id, name: playerName });
     }
 
+    if (typeof roomCode === "string") {
+      const upperCode = roomCode.toUpperCase();
+      socket.join(upperCode);
+    }
     socket.join(upperCode);
     console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
 
