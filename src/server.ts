@@ -26,7 +26,7 @@ app.use(
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
-    origin: "*",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -302,7 +302,7 @@ io.on("connection", (socket) => {
 
     const room = rooms[upperCode];
 
-    // 🔐 Prevent duplicate names
+    // 🔐 Prevent duplicate names from different users
     const nameTaken = room.players.some((p) => p.name === playerName && p.id !== socket.id);
     if (nameTaken) {
       console.log(`⚠️ Name already taken in ${upperCode}: ${playerName}`);
