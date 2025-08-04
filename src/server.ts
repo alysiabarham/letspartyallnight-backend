@@ -1,18 +1,14 @@
 import express from "express";
 import type { Application } from "express";
-
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { createServer } from "http";
 import {
-  Player,
   Room,
   PlayerResult,
   SubmitGuessPayload,
   RankingPayload,
-  EntryPayload,
-  GameStartPayload,
 } from "./types";
 import { Server } from "socket.io";
 import { ServerToClientEvents, ClientToServerEvents } from "./socketTypes";
@@ -50,14 +46,12 @@ function createRoom(code: string, hostId: string): Room {
   };
 }
 
-const players: Player[] = [];
-
 const allowedOrigins = [
   "https://letspartyallnight-frontend.vercel.app",
   "https://letspartyallnight.games",
   "https://www.letspartyallnight.games",
   "https://letspartyallnight-frontend-74ga0qmkq-alysia-barhams-projects.vercel.app",
-  undefined, // ✅ allow localhost and undefined origins for dev
+  undefined,
 ];
 
 app.set("trust proxy", 1);
@@ -176,7 +170,6 @@ const categories = [
 app.all("/socket.io/*", (req, res) => {
   res.status(400).send("Polling transport blocked");
 });
-const results: Record<string, PlayerResult> = {};
 
 // --- Middleware ---
 app.use(helmet());
@@ -209,55 +202,54 @@ const createRoomLimiter = rateLimit({
     "Too many room creation attempts from this IP, please try again after an hour.",
 });
 
-const isAlphanumeric = (text) => /^[a-zA-Z0-9]+$/.test(text);
+const isAlphanumeric = (text: string): boolean => /^[a-zA-Z0-9]+$/.test(text);
 
 // --- Routes ---
 app.get("/", (req, res) => {
   res.send("Hello from the Let's Party All Night backend!");
 });
 
-type HostRequestBody = { hostId: string };
-
 app.post("/create-room", createRoomLimiter, (req, res) => {
-  const { hostId } = req.body as HostRequestBody;
+  type HostPayload = { hostId: string; roomCode: string };
+  const { hostId, roomCode } = req.body as HostPayload;
   if (!hostId || !isAlphanumeric(hostId)) {
     return res.status(400).json({ error: "Host name must be alphanumeric." });
   }
-  type JoinRoomPayload = { roomCode: string };
-  const { roomCode } = req.body as JoinRoomPayload;
-  const newRoom = createRoom(roomCode, hostId);
+  if (!roomCode || !isAlphanumeric(roomCode)) {
+    return res.status(400).json({ error: "Room code must be alphanumeric." });
+  }
+  const upperCode = roomCode.toUpperCase();
+  if (rooms[upperCode]) {
+    return res.status(400).json({ error: "Room code already exists." });
+  }
+  const newRoom = createRoom(upperCode, hostId);
   newRoom.players.push({ id: hostId, name: hostId });
-  rooms[roomCode] = newRoom;
+  rooms[upperCode] = newRoom;
 
-  console.log(`Room created: ${roomCode} by ${hostId}`);
+  console.log(`Room created: ${upperCode} by ${hostId}`);
   res.status(201).json({
     message: "Room created successfully!",
-    roomCode,
-    room: rooms[roomCode],
+    roomCode: upperCode,
+    room: rooms[upperCode],
   });
 });
 
 app.post("/join-room", apiLimiter, (req, res) => {
-  const { roomCode, playerId } = req.body;
-  if (
-    !roomCode ||
-    !isAlphanumeric(roomCode) ||
-    !playerId ||
-    !isAlphanumeric(playerId)
-  ) {
-    return res
-      .status(400)
-      .json({ error: "Room code and player name must be alphanumeric." });
+  const { roomCode, playerId } = req.body as {
+    roomCode?: string;
+    playerId?: string;
+  };
+
+  if (typeof roomCode !== "string" || typeof playerId !== "string") {
+    return res.status(400).json({ error: "Invalid roomCode or playerId." });
   }
 
-  const rooms: Record<string, RoomData> = {};
-  type RoomData = {
-    hostId: string;
-    players: string[];
-    // etc...
-  };
-  const room = rooms[roomCode.toUpperCase()];
-  if (!room) return res.status(404).json({ error: "Room not found." });
+  const upperCode = roomCode.toUpperCase();
+  const room = rooms[upperCode];
+
+  if (!room) {
+    return res.status(404).json({ error: "Room not found." });
+  }
 
   if (room.players.length >= room.maxPlayers) {
     return res.status(403).json({ error: "Room is full." });
@@ -268,22 +260,37 @@ app.post("/join-room", apiLimiter, (req, res) => {
   }
 
   room.players.push({ id: playerId, name: playerId });
-  console.log(`Player ${playerId} joined room ${roomCode}`);
-  res.status(200).json({ message: "Successfully joined room!", room });
+  console.log(`Player ${playerId} joined room ${upperCode}`);
+  return res.status(200).json({ message: "Successfully joined room!", room });
 });
+
+// --- Utility Functions ---
+function generateRoomCode() {
+  let code;
+  do {
+    code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  } while (rooms[code]);
+  return code;
+}
+
+function shuffleArray(arr: string[]): string[] {
+  return [...arr].sort(() => Math.random() - 0.5);
+}
 
 // --- Socket.IO Events ---
 io.on("connection", (socket) => {
   console.log(`⚡ Socket connected: ${socket.id}`);
 
-  socket.on("joinGameRoom", ({ roomCode, playerName }) => {
-    const upperCode = roomCode.toUpperCase();
+  socket.on("joinGameRoom", async ({ roomCode, playerName }) => {
+    const upperCode =
+      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
+    await socket.join(upperCode);
 
     // 🚧 Input validation
     if (
       typeof roomCode !== "string" ||
       typeof playerName !== "string" ||
-      !/^[a-zA-Z0-9]+$/.test(playerName) ||
+      !isAlphanumeric(playerName) ||
       playerName.length > 20
     ) {
       console.log(`🚨 Invalid join from ${socket.id} — blocked`);
@@ -291,13 +298,14 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const room = rooms[upperCode];
-
-    // 🆕 If room doesn't exist, bail (or optionally create it)
-    if (!room) {
-      socket.emit("joinError", { message: "Room does not exist." });
-      return;
+    // Initialize room if it doesn't exist
+    if (!rooms[upperCode]) {
+      const newRoom = createRoom(upperCode, socket.id);
+      rooms[upperCode] = newRoom;
+      console.log(`🆕 Created new room: ${upperCode}`);
     }
+
+    const room = rooms[upperCode];
 
     // 🔐 Prevent duplicate names
     const nameTaken = room.players.some(
@@ -307,28 +315,6 @@ io.on("connection", (socket) => {
       console.log(`⚠️ Name already taken in ${upperCode}: ${playerName}`);
       socket.emit("joinError", { message: "Name already taken in this room." });
       return;
-    }
-
-    // ✅ Safe join
-    console.log(`🌐 ${playerName} joined ${upperCode}`);
-    io.to(upperCode).emit("playerJoined", {
-      playerName,
-      players: room.players,
-    });
-
-    socket.emit("roomState", {
-      players: room.players,
-      phase: room.phase,
-      round: room.round,
-      judgeName: room.judgeName,
-      category: room.category,
-    });
-
-    // Initialize room if it doesn't exist
-    if (!rooms[upperCode]) {
-      const newRoom = createRoom(upperCode, socket.id);
-      newRoom.players.push({ id: socket.id, name: playerName });
-      rooms[upperCode] = newRoom;
     }
 
     // Add or update player
@@ -341,14 +327,15 @@ io.on("connection", (socket) => {
       room.players.push({ id: socket.id, name: playerName });
     }
 
-    if (typeof roomCode === "string") {
-      const upperCode = roomCode.toUpperCase();
-      socket.join(upperCode);
-    }
-    socket.join(upperCode);
-    console.log(`${playerName} (${socket.id}) joined room ${upperCode}`);
+    // ✅ Safe join
+    console.log(`🌐 ${playerName} (${socket.id}) joined ${upperCode}`);
+    io.to(upperCode).emit("playerJoined", {
+      playerName,
+      players: room.players,
+      message: `${playerName} has joined the game.`,
+    });
 
-    // Emit room state after initialization
+    // Emit room state
     socket.emit("roomState", {
       players: room.players,
       phase: room.phase,
@@ -370,20 +357,15 @@ io.on("connection", (socket) => {
         `✅ Re-sent entries to Judge (${playerName}) on refresh during ranking phase`,
       );
     }
-
-    // Notify all others of the new join
-    io.to(upperCode).emit("playerJoined", {
-      playerName,
-      players: room.players,
-      message: `${playerName} has joined the game.`,
-    });
   });
 
   socket.on("gameStarted", ({ roomCode, roundLimit }) => {
-    const upperCode = roomCode.toUpperCase();
+    const upperCode =
+      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
-    if (!room.guesses) room.guesses = {};
+    if (!room) return;
 
+    if (!room.guesses) room.guesses = {};
     room.roundLimit = roundLimit || 5;
     room.round = 1;
     room.phase = "entry";
@@ -406,16 +388,10 @@ io.on("connection", (socket) => {
   });
 
   socket.on("submitEntry", ({ roomCode, playerName, entry }) => {
-    const upperCode = roomCode.toUpperCase();
+    const upperCode =
+      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room) return;
-    socket.emit("roomState", {
-      players: room.players,
-      phase: room.phase,
-      round: room.round,
-      judgeName: room.judgeName,
-      category: room.category,
-    });
 
     if (!entry || !isAlphanumeric(entry.replace(/\s+/g, ""))) {
       console.log(`🚫 Invalid entry from ${playerName}: ${entry}`);
@@ -438,10 +414,19 @@ io.on("connection", (socket) => {
         console.log(`📨 Updated entries sent to Judge (${room.judgeName})`);
       }
     }
+
+    socket.emit("roomState", {
+      players: room.players,
+      phase: room.phase,
+      round: room.round,
+      judgeName: room.judgeName,
+      category: room.category,
+    });
   });
 
   socket.on("startRankingPhase", ({ roomCode, judgeName }) => {
-    const upperCode = roomCode.toUpperCase();
+    const upperCode =
+      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room) return;
 
@@ -479,13 +464,10 @@ io.on("connection", (socket) => {
     }
   });
 
-  const shuffleArray = (arr) => {
-    return [...arr].sort(() => Math.random() - 0.5);
-  };
-
   socket.on("submitRanking", (data: RankingPayload) => {
     const { roomCode, ranking } = data;
-    const upperCode = roomCode.toUpperCase();
+    const upperCode =
+      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room) return;
 
@@ -506,7 +488,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("requestEntries", ({ roomCode }) => {
-    const upperCode = roomCode.toUpperCase();
+    const upperCode =
+      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room || !room.selectedEntries) return;
 
@@ -515,7 +498,8 @@ io.on("connection", (socket) => {
 
   socket.on("submitGuess", (data: SubmitGuessPayload) => {
     const { roomCode, playerName, guess } = data;
-    const upperCode = roomCode.toUpperCase();
+    const upperCode =
+      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room) return;
 
@@ -536,8 +520,8 @@ io.on("connection", (socket) => {
       room.players.some((p) => p.name === playerName),
     );
 
-    room.guesses[playerName] = guess;
     if (!room.guesses) room.guesses = {};
+    room.guesses[playerName] = guess;
 
     const player = room.players.find((p) => p.name === playerName);
     if (player) player.hasGuessed = true;
@@ -605,8 +589,6 @@ io.on("connection", (socket) => {
         const judgeName = room.players[judgeIndex]?.name;
         room.judgeName = judgeName;
 
-        const judgeSocket = room.players.find((p) => p.name === judgeName)?.id;
-
         console.log(
           `🔁 Starting round ${room.round} in ${upperCode} | Judge: ${judgeName}`,
         );
@@ -629,14 +611,6 @@ io.on("connection", (socket) => {
     console.log(`User disconnected: ${socket.id}`);
   });
 });
-
-function generateRoomCode() {
-  let code;
-  do {
-    code = Math.random().toString(36).substring(2, 8).toUpperCase();
-  } while (rooms[code]);
-  return code;
-}
 
 httpServer.listen(port, () => {
   console.log(`Backend server listening at http://localhost:${port}`);

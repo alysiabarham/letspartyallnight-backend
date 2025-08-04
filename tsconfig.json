@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "noImplicitAny": true,
+
     // File Layout
     "rootDir": "./src",
     "outDir": "./dist",
