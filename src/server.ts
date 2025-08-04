@@ -10,6 +10,19 @@ import { ServerToClientEvents, ClientToServerEvents } from "./socketTypes";
 
 const app: Application = express();
 const httpServer = createServer(app);
+const allowedOrigins = [
+  "https://letspartyallnight-frontend.vercel.app",
+  "https://letspartyallnight.games",
+  "https://www.letspartyallnight.games",
+  "https://letspartyallnight-frontend-74ga0qmkq-alysia-barhams-projects.vercel.app",
+];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  }),
+);
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
@@ -41,13 +54,9 @@ function createRoom(code: string, hostId: string): Room {
   };
 }
 
-const allowedOrigins = [
-  "https://letspartyallnight-frontend.vercel.app",
-  "https://letspartyallnight.games",
-  "https://www.letspartyallnight.games",
-  "https://letspartyallnight-frontend-74ga0qmkq-alysia-barhams-projects.vercel.app",
-  undefined,
-];
+function generateRoomCode(): string {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
 
 app.set("trust proxy", 1);
 const port = process.env.PORT || 10000;
@@ -204,27 +213,29 @@ app.get("/", (_req, res) => {
 });
 
 app.post("/create-room", createRoomLimiter, (req, res) => {
-  type HostPayload = { hostId: string; roomCode: string };
-  const { hostId, roomCode } = req.body as HostPayload;
+  const { hostId } = req.body as { hostId: string };
+
   if (!hostId || !isAlphanumeric(hostId)) {
     return res.status(400).json({ error: "Host name must be alphanumeric." });
   }
-  if (!roomCode || !isAlphanumeric(roomCode)) {
-    return res.status(400).json({ error: "Room code must be alphanumeric." });
-  }
-  const upperCode = roomCode.toUpperCase();
-  if (rooms[upperCode]) {
-    return res.status(400).json({ error: "Room code already exists." });
-  }
-  const newRoom = createRoom(upperCode, hostId);
-  newRoom.players.push({ id: hostId, name: hostId });
-  rooms[upperCode] = newRoom;
 
-  console.log(`Room created: ${upperCode} by ${hostId}`);
+  let roomCode = generateRoomCode();
+  roomCode = roomCode.toUpperCase();
+
+  // Ensure uniqueness (regenerate if already exists)
+  while (rooms[roomCode]) {
+    roomCode = generateRoomCode().toUpperCase();
+  }
+
+  const newRoom = createRoom(roomCode, hostId);
+  newRoom.players.push({ id: hostId, name: hostId });
+  rooms[roomCode] = newRoom;
+
+  console.log(`Room created: ${roomCode} by ${hostId}`);
   res.status(201).json({
     message: "Room created successfully!",
-    roomCode: upperCode,
-    room: rooms[upperCode],
+    roomCode,
+    room: rooms[roomCode],
   });
 
   return res.end();
