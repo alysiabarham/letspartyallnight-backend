@@ -1,15 +1,13 @@
 {
   "compilerOptions": {
-    "noImplicitAny": true,
-
     // File Layout
     "rootDir": "./src",
     "outDir": "./dist",
 
     // Environment Settings
+    "target": "ES2022",
     "module": "CommonJS",
-    "target": "ES2020",
-    "lib": ["ES2020"],
+    "lib": ["ES2022"],
     "types": ["node"],
 
     // Module Compatibility
@@ -24,6 +22,7 @@
 
     // Typechecking
     "strict": true,
+    "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
 
@@ -35,8 +34,9 @@
 
     // Module Detection
     "moduleDetection": "force",
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
   "include": ["src"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist"]
 }

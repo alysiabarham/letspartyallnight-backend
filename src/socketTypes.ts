@@ -1,46 +1,30 @@
-import {
-  EntryPayload,
-  RankingPayload,
-  SubmitGuessPayload,
-  Room,
-  GameStartPayload,
-  PlayerResult,
-  Player,
-} from "./types";
+import { RankingPayload, SubmitGuessPayload, Room, PlayerResult, Player } from "./types";
 
-export type ClientToServerEvents = {
-  joinGameRoom: (data: { roomCode: string; playerName: string }) => void;
-  gameStarted: (data: { roomCode: string; roundLimit?: number }) => void;
-  submitEntry: (data: {
-    roomCode: string;
-    playerName: string;
-    entry: string;
-  }) => void;
-  startRankingPhase: (data: { roomCode: string; judgeName: string }) => void;
-  submitRanking: (data: RankingPayload) => void;
-  requestEntries: (data: { roomCode: string }) => void;
-  submitGuess: (data: SubmitGuessPayload) => void;
+export interface ClientToServerEvents {
+  joinGameRoom: (payload: { roomCode: string; playerName: string }) => void;
+  gameStarted: (payload: { roomCode: string; roundLimit?: number }) => void;
+  submitEntry: (payload: { roomCode: string; playerName: string; entry: string }) => void;
+  startRankingPhase: (payload: { roomCode: string; judgeName: string }) => void;
+  submitRanking: (payload: RankingPayload) => void;
+  requestEntries: (payload: { roomCode: string }) => void;
+  submitGuess: (payload: SubmitGuessPayload) => void;
 }
 
-export type ServerToClientEvents = {
-  joinError: (data: { message: string }) => void;
-  playerJoined: (data: {
-    playerName: string;
-    players: Player[];
-    message?: string;
-  }) => void;
-  roomState: (data: {
-    players: Player[];
+export interface ServerToClientEvents {
+  joinError: (payload: { message: string }) => void;
+  playerJoined: (payload: { playerName: string; players: Player[]; message: string }) => void;
+  roomState: (payload: {
+    players: Room["players"];
     phase: Room["phase"];
-    round: number;
-    judgeName: string | null;
-    category: string | null;
+    round: Room["round"];
+    judgeName: Room["judgeName"];
+    category: Room["category"];
   }) => void;
-  newEntry: (data: { entry: string }) => void;
-  sendAllEntries: (data: { entries: string[] }) => void;
-  gameStarted: (data: { category: string; round: number }) => void;
-  startRankingPhase: (data: { judgeName: string }) => void;
-  revealResults: (data: {
+  newEntry: (payload: { entry: string }) => void;
+  sendAllEntries: (payload: { entries: string[] }) => void;
+  gameStarted: (payload: { category: string; round: number }) => void;
+  startRankingPhase: (payload: { judgeName: string }) => void;
+  revealResults: (payload: {
     judgeRanking: string[];
     results: Record<string, PlayerResult>;
   }) => void;

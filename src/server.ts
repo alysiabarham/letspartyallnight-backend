@@ -4,12 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { createServer } from "http";
-import {
-  Room,
-  PlayerResult,
-  SubmitGuessPayload,
-  RankingPayload,
-} from "./types";
+import { Room, PlayerResult, SubmitGuessPayload, RankingPayload } from "./types";
 import { Server } from "socket.io";
 import { ServerToClientEvents, ClientToServerEvents } from "./socketTypes";
 
@@ -167,7 +162,7 @@ const categories = [
   "Worst Things",
 ];
 
-app.all("/socket.io/*", (req, res) => {
+app.all("/socket.io/*", (_req, res) => {
   res.status(400).send("Polling transport blocked");
 });
 
@@ -198,14 +193,13 @@ const apiLimiter = rateLimit({
 const createRoomLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 10,
-  message:
-    "Too many room creation attempts from this IP, please try again after an hour.",
+  message: "Too many room creation attempts from this IP, please try again after an hour.",
 });
 
 const isAlphanumeric = (text: string): boolean => /^[a-zA-Z0-9]+$/.test(text);
 
 // --- Routes ---
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   res.send("Hello from the Let's Party All Night backend!");
 });
 
@@ -232,13 +226,12 @@ app.post("/create-room", createRoomLimiter, (req, res) => {
     roomCode: upperCode,
     room: rooms[upperCode],
   });
+
+  return res.end();
 });
 
 app.post("/join-room", apiLimiter, (req, res) => {
-  const { roomCode, playerId } = req.body as {
-    roomCode?: string;
-    playerId?: string;
-  };
+  const { roomCode, playerId } = req.body as { roomCode?: string; playerId?: string };
 
   if (typeof roomCode !== "string" || typeof playerId !== "string") {
     return res.status(400).json({ error: "Invalid roomCode or playerId." });
@@ -265,14 +258,6 @@ app.post("/join-room", apiLimiter, (req, res) => {
 });
 
 // --- Utility Functions ---
-function generateRoomCode() {
-  let code;
-  do {
-    code = Math.random().toString(36).substring(2, 8).toUpperCase();
-  } while (rooms[code]);
-  return code;
-}
-
 function shuffleArray(arr: string[]): string[] {
   return [...arr].sort(() => Math.random() - 0.5);
 }
@@ -282,8 +267,7 @@ io.on("connection", (socket) => {
   console.log(`⚡ Socket connected: ${socket.id}`);
 
   socket.on("joinGameRoom", async ({ roomCode, playerName }) => {
-    const upperCode =
-      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
+    const upperCode = typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     await socket.join(upperCode);
 
     // 🚧 Input validation
@@ -308,9 +292,7 @@ io.on("connection", (socket) => {
     const room = rooms[upperCode];
 
     // 🔐 Prevent duplicate names
-    const nameTaken = room.players.some(
-      (p) => p.name === playerName && p.id !== socket.id,
-    );
+    const nameTaken = room.players.some((p) => p.name === playerName && p.id !== socket.id);
     if (nameTaken) {
       console.log(`⚠️ Name already taken in ${upperCode}: ${playerName}`);
       socket.emit("joinError", { message: "Name already taken in this room." });
@@ -320,9 +302,7 @@ io.on("connection", (socket) => {
     // Add or update player
     const existing = room.players.some((p) => p.name === playerName);
     if (existing) {
-      room.players = room.players.map((p) =>
-        p.name === playerName ? { ...p, id: socket.id } : p,
-      );
+      room.players = room.players.map((p) => (p.name === playerName ? { ...p, id: socket.id } : p));
     } else {
       room.players.push({ id: socket.id, name: playerName });
     }
@@ -346,22 +326,15 @@ io.on("connection", (socket) => {
 
     // If judge has not ranked yet and we're in ranking phase, re-send entries
     const judge = room.players.find((p) => p.name === room.judgeName);
-    if (
-      room.phase === "ranking" &&
-      room.judgeName === playerName &&
-      !judge?.hasRanked
-    ) {
+    if (room.phase === "ranking" && room.judgeName === playerName && !judge?.hasRanked) {
       const anonymousEntries = room.entries.map((e) => e.entry);
       io.to(socket.id).emit("sendAllEntries", { entries: anonymousEntries });
-      console.log(
-        `✅ Re-sent entries to Judge (${playerName}) on refresh during ranking phase`,
-      );
+      console.log(`✅ Re-sent entries to Judge (${playerName}) on refresh during ranking phase`);
     }
   });
 
   socket.on("gameStarted", ({ roomCode, roundLimit }) => {
-    const upperCode =
-      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
+    const upperCode = typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room) return;
 
@@ -375,21 +348,22 @@ io.on("connection", (socket) => {
 
     const category = categories[Math.floor(Math.random() * categories.length)];
     const judgeIndex = (room.round - 1) % room.players.length;
-    const judgeName = room.players[judgeIndex]?.name;
+    const judgeName = room.players[judgeIndex]?.name ?? null;
     room.judgeName = judgeName;
 
     console.log(
       `🎮 Game started in ${upperCode} | Round ${room.round}/${room.roundLimit} | Judge: ${judgeName}`,
     );
+    const safeCategory = category ?? "Misc";
+
     io.to(upperCode).emit("gameStarted", {
-      category,
+      category: safeCategory,
       round: room.round,
     });
   });
 
   socket.on("submitEntry", ({ roomCode, playerName, entry }) => {
-    const upperCode =
-      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
+    const upperCode = typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room) return;
 
@@ -403,9 +377,7 @@ io.on("connection", (socket) => {
     io.to(upperCode).emit("newEntry", { entry });
 
     if (room.judgeName) {
-      const judgeSocket = room.players.find(
-        (p) => p.name === room.judgeName,
-      )?.id;
+      const judgeSocket = room.players.find((p) => p.name === room.judgeName)?.id;
       if (judgeSocket) {
         const anonymousEntries = room.entries.map((e) => e.entry);
         io.to(judgeSocket).emit("sendAllEntries", {
@@ -425,17 +397,14 @@ io.on("connection", (socket) => {
   });
 
   socket.on("startRankingPhase", ({ roomCode, judgeName }) => {
-    const upperCode =
-      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
+    const upperCode = typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room) return;
 
     room.judgeName = judgeName;
     room.phase = "ranking";
 
-    console.log(
-      `🔔 Ranking phase started in ${upperCode} by judge ${judgeName}`,
-    );
+    console.log(`🔔 Ranking phase started in ${upperCode} by judge ${judgeName}`);
     io.to(upperCode).emit("startRankingPhase", {
       judgeName: room.judgeName,
     });
@@ -466,8 +435,7 @@ io.on("connection", (socket) => {
 
   socket.on("submitRanking", (data: RankingPayload) => {
     const { roomCode, ranking } = data;
-    const upperCode =
-      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
+    const upperCode = typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room) return;
 
@@ -481,15 +449,11 @@ io.on("connection", (socket) => {
     const shuffled = shuffleArray(ranking);
     io.to(upperCode).emit("sendAllEntries", { entries: shuffled });
 
-    console.log(
-      `✅ Shuffled ranking sent to guessers in ${upperCode}:`,
-      shuffled,
-    );
+    console.log(`✅ Shuffled ranking sent to guessers in ${upperCode}:`, shuffled);
   });
 
   socket.on("requestEntries", ({ roomCode }) => {
-    const upperCode =
-      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
+    const upperCode = typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room || !room.selectedEntries) return;
 
@@ -498,17 +462,21 @@ io.on("connection", (socket) => {
 
   socket.on("submitGuess", (data: SubmitGuessPayload) => {
     const { roomCode, playerName, guess } = data;
-    const upperCode =
-      typeof roomCode === "string" ? roomCode.toUpperCase() : "";
+    const upperCode = typeof roomCode === "string" ? roomCode.toUpperCase() : "";
     const room = rooms[upperCode];
     if (!room) return;
 
     if (room.guesses[playerName]) {
-      console.log(
-        `🚫 Player ${playerName} already submitted a guess. Ignoring.`,
-      );
+      console.log(`🚫 Player ${playerName} already submitted a guess. Ignoring.`);
       return;
     }
+    socket.emit("roomState", {
+      players: room.players,
+      phase: room.phase,
+      round: room.round,
+      judgeName: room.judgeName,
+      category: room.category,
+    });
 
     console.log(
       "Room players at guess time:",
@@ -566,10 +534,7 @@ io.on("connection", (socket) => {
         results,
       });
 
-      console.log(
-        `✅ Revealed results with scores for room ${upperCode}:`,
-        results,
-      );
+      console.log(`✅ Revealed results with scores for room ${upperCode}:`, results);
 
       if (!room.totalScores) room.totalScores = {};
       for (const [name, result] of Object.entries(results)) {
@@ -579,30 +544,28 @@ io.on("connection", (socket) => {
       if (room.round < room.roundLimit) {
         room.round++;
         const judgeIndex = (room.round - 1) % room.players.length;
-        room.judgeName = room.players[judgeIndex]?.name || null;
+        room.judgeName = room.players[judgeIndex]?.name ?? null;
         room.entries = [];
         room.guesses = {};
         room.phase = "entry";
 
-        const nextCategory =
-          categories[Math.floor(Math.random() * categories.length)];
-        const judgeName = room.players[judgeIndex]?.name;
+        const nextCategory: string =
+          categories.length > 0
+            ? categories[Math.floor(Math.random() * categories.length)] || "Misc"
+            : "Misc";
+        const judgeName = room.players[judgeIndex]?.name ?? null;
         room.judgeName = judgeName;
 
-        console.log(
-          `🔁 Starting round ${room.round} in ${upperCode} | Judge: ${judgeName}`,
-        );
+        console.log(`🔁 Starting round ${room.round} in ${upperCode} | Judge: ${judgeName}`);
         io.to(upperCode).emit("gameStarted", {
           category: nextCategory,
           round: room.round,
         });
-        io.to(upperCode).emit("startRankingPhase", { judgeName });
+        const safeJudgeName = judgeName ?? "Unknown";
+        io.to(upperCode).emit("startRankingPhase", { judgeName: safeJudgeName });
       } else {
         io.to(upperCode).emit("finalScores", { scores: room.totalScores });
-        console.log(
-          `🏁 Game ended in ${upperCode}. Final scores:`,
-          room.totalScores,
-        );
+        console.log(`🏁 Game ended in ${upperCode}. Final scores:`, room.totalScores);
       }
     }
   });

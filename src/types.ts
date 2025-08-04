@@ -1,39 +1,39 @@
-export type SubmitGuessPayload = {
+export interface SubmitGuessPayload {
   roomCode: string;
   playerName: string;
   guess: string[];
 }
 
-export type GuessPayload = {
+export interface GuessPayload {
   roomCode: string;
   playerName: string;
   guess: string[];
 }
 
-export type RankingPayload = {
+export interface RankingPayload {
   roomCode: string;
   ranking: string[];
 }
 
-export type EntryPayload = {
+export interface EntryPayload {
   roomCode: string;
   playerName: string;
   entry: string;
 }
 
-export type GameStartPayload = {
+export interface GameStartPayload {
   roomCode: string;
   roundLimit?: number;
 }
 
-export type Player = {
+export interface Player {
   id: string;
   name: string;
   hasGuessed?: boolean;
   hasRanked?: boolean;
 }
 
-export type Room = {
+export interface Room {
   code: string;
   hostId: string;
   players: Player[];
@@ -44,15 +44,15 @@ export type Room = {
   totalScores: Record<string, number>;
   round: number;
   roundLimit: number;
-  phase: "entry" | "ranking" | "guessing" | "results" | "lobby";
+  phase: "entry" | "ranking";
   judgeName: string | null;
   category: string | null;
-  state: string;
+  state: "lobby" | "active" | "ended";
   maxPlayers: number;
-  gameData?: Record<string, unknown>;
+  gameData: Record<string, unknown>;
 }
 
-export type PlayerResult = {
+export interface PlayerResult {
   guess: string[];
   score: number;
 }
