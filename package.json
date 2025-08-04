@@ -8,7 +8,7 @@
     "build": "npm run lint && npm run format && tsc",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
-    "start": "ts-node-dev src/index.ts",
+    "start": "ts-node src/server.ts",
     "prepare": "husky install",
     "test": "echo \"No tests yet\" && exit 0"
   },
