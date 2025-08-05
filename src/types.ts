@@ -1,39 +1,39 @@
-export interface SubmitGuessPayload {
+export type SubmitGuessPayload = {
   roomCode: string;
   playerName: string;
   guess: string[];
-}
+};
 
-export interface GuessPayload {
+export type GuessPayload = {
   roomCode: string;
   playerName: string;
   guess: string[];
-}
+};
 
-export interface RankingPayload {
+export type RankingPayload = {
   roomCode: string;
   ranking: string[];
-}
+};
 
-export interface EntryPayload {
+export type EntryPayload = {
   roomCode: string;
   playerName: string;
   entry: string;
-}
+};
 
-export interface GameStartPayload {
+export type GameStartPayload = {
   roomCode: string;
   roundLimit?: number;
-}
+};
 
-export interface Player {
+export type Player = {
   id: string;
   name: string;
   hasGuessed?: boolean;
   hasRanked?: boolean;
-}
+};
 
-export interface Room {
+export type Room = {
   code: string;
   hostId: string;
   players: Player[];
@@ -50,9 +50,9 @@ export interface Room {
   state: "lobby" | "active" | "ended";
   maxPlayers: number;
   gameData: Record<string, unknown>;
-}
+};
 
-export interface PlayerResult {
+export type PlayerResult = {
   guess: string[];
   score: number;
-}
+};

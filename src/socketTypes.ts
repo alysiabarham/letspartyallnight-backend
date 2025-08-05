@@ -1,6 +1,6 @@
 import { RankingPayload, SubmitGuessPayload, Room, PlayerResult, Player } from "./types";
 
-export interface ClientToServerEvents {
+export type ClientToServerEvents = {
   joinGameRoom: (payload: { roomCode: string; playerName: string }) => void;
   gameStarted: (payload: { roomCode: string; roundLimit?: number }) => void;
   submitEntry: (payload: { roomCode: string; playerName: string; entry: string }) => void;
@@ -8,9 +8,9 @@ export interface ClientToServerEvents {
   submitRanking: (payload: RankingPayload) => void;
   requestEntries: (payload: { roomCode: string }) => void;
   submitGuess: (payload: SubmitGuessPayload) => void;
-}
+};
 
-export interface ServerToClientEvents {
+export type ServerToClientEvents = {
   joinError: (payload: { message: string }) => void;
   playerJoined: (payload: { playerName: string; players: Player[]; message: string }) => void;
   roomState: (payload: {
@@ -29,7 +29,7 @@ export interface ServerToClientEvents {
     results: Record<string, PlayerResult>;
   }) => void;
   finalScores: (payload: { scores: Record<string, number> }) => void;
-}
+};
 
 export type GameState = {
   players: string[];
